@@ -1,0 +1,39 @@
+---------------------------------------------------------------------------
+[For Unix platforms]
+
+Block IP Addresses based on login or access information in system logs.
+
+Updates a hosts blockfile (such as hosts.allow) automatically,
+to block IP addresses. Will also expire previously blocked addresses
+based on age of last failed login attempt, this keeps the blockfile
+size manageable.
+
+In addition to TCP_WRAPPERS, can also execute iptables or ip commands
+to block all TCP/IP network input from an IP address, so all services,
+even those that do not run under libwrap TCP_WRAPPERS, can be protected.
+
+An email notification facility is also available.
+---------------------------------------------------------------------------
+
+---> INSTALLATION / UPGRADE -> see the file INSTALL
+
+---> Documentation: -> see blockhosts.html
+
+    Or:
+
+    -- run script with --help argument:
+       blockhosts.py --help
+    -- see blockhosts.cfg file for configuration values
+
+---------------------------------------------------------------------------
+Web: http://www.aczoom.com/blockhosts
+
+Avinash Chopde <avinash@aczoom.com>
+
+---------------------------------------------------------------------------
+BlockHosts Script License
+This work is hereby released into the Public Domain.
+To view a copy of the public domain dedication, visit
+http://creativecommons.org/licenses/publicdomain/ or send a letter to
+Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
+

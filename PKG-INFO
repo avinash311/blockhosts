@@ -1,0 +1,26 @@
+Metadata-Version: 1.0
+Name: BlockHosts
+Version: 2.7.0
+Summary: Block IP Addresses based on system logs showing patterns of undesirable accesses.
+Home-page: http://www.aczoom.com/blockhosts/
+Author: Avinash Chopde
+Author-email: avinash@aczoom.com
+License: http://creativecommons.org/licenses/publicdomain/
+Description: Block IP Addresses based on login or access failure
+        information in system logs.
+        
+        Updates a hosts blockfile (such as hosts.allow) automatically,
+        to block IP addresses. Will also expire previously blocked addresses
+        based on age of last failed login attempt, this keeps the blockfile
+        size manageable.
+        In addition to TCP_WRAPPERS, can also execute iptables or ip route commands
+        to block all TCP/IP network input from an IP address, so all services, even
+        those that do not run under libwrap TCP_WRAPPERS, can be protected.
+        Can handle both IPv4 and IPv6 addresses, as long as the system tools also
+        support such addressess.
+        
+        Facilities for whitelists and blacklists, and email notification on major
+        events are also available.
+        
+        
+Platform: UNKNOWN

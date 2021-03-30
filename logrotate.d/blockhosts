@@ -1,0 +1,11 @@
+# to rotate logs, put this file as /etc/logrotate.d/blockhosts
+# necessary only if /var/log/blockhosts.log is being written to - see the
+# INSTALL file on where this may be used - for extra logging only, most
+# installs may not be creating blockhosts.log at all, so this is not necessary
+/var/log/blockhosts.log {
+  notifempty
+  missingok
+  monthly
+  rotate 3
+  create
+}

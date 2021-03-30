@@ -1,0 +1,16 @@
+CHANGES
+INSTALL
+README
+LICENSE
+MANIFEST
+blockhosts.cfg
+blockhosts.html
+blockhosts.py
+logrotate.d/blockhosts
+logwatch/blockhosts
+logwatch/blockhosts.conf
+setup.cfg
+setup.py
+test_blockhosts.py
+test_data/test_all.log
+test_data/test_hosts.allow

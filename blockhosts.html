@@ -1,0 +1,259 @@
+<html><body><h2>blockhosts.py</h2>
+
+<pre>
+version:     2.7.0
+
+Usage: blockhosts.py [options]
+
+Block IP Addresses based on login or access failure information in system
+logs.  Updates a hosts blockfile (such as hosts.allow) automatically, to block
+IP addresses. Will also expire previously blocked addresses based on age of
+last failed login attempt, this keeps the blockfile size manageable. In
+addition to TCP_WRAPPERS, can also execute iptables or ip route commands to
+block all TCP/IP network input from an IP address, so all services, even those
+that do not run under libwrap TCP_WRAPPERS, can be protected. Can handle both
+IPv4 and IPv6 addresses, as long as the system tools also support such
+addressess.  Facilities for whitelists and blacklists, and email notification
+on major events are also available.
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  --configfile=FILE     Name of configuration file to read. A configuration
+                        file must exist, blockhosts cannot run without a
+                        configuration file. (/etc/blockhosts.cfg)
+
+  Common options:
+    Each option is shown below with its current value in parentheses ().
+    Nearly all of these options can be specified in the configuration
+    file, and that is the recommended way.
+
+    -q, --quiet         Be as quiet as possible - only print out error
+                        messages
+    -v, --verbose       Be verbose - print errors, warnings, and info messages
+    -g, --debug         Be chatty - print out debug level messages also
+    --dry-run           Don't write the block file or send email or block
+                        routes, just print out blockhosts section of output
+                        block file file to stdout instead (False)
+    --echo=TAG          Prints TAG on stderr and syslog, may be used to
+                        identify a run of this script ()
+    --blockfile=FILE    Name of hosts-block-file to read/write
+                        (/etc/hosts.allow)
+
+  BlockHosts blockfile specific options:
+    These options apply to the process of updating the list of blocked
+    hosts in the blockfile. Note that all of these options can be
+    specified in the config file instead of the command-line.
+
+    --load-only         Load the blockfile, the blocked/watched host list, but
+                        do not prune/add or write back the data (False)
+    --ignore-offset     Ignore last-processed offset, start processing from
+                        beginning.  This is useful for testing or special uses
+                        only. (False)
+    --logfiles=FILE1,FILE2,...
+                        The names of log files to parse ("/var/log/secure")
+    --lockfile=FILE     Prevent multiple instances from writing to blockfile
+                        at once - open this file for locking and writing
+                        (/tmp/blockhosts.lock)
+    --enable-rules=REGEX
+                        A regular expression to match names of rules that are
+                        to be enabled. Rule names are defined in the
+                        blockhosts config file. '.*' will enable all patterns.
+                        ('(sshd|.*ftpd).*')
+
+  Blocking and watching IP lists filtering:
+    These options apply to the pruning and updating of the blocked and
+    watched lists of IP addresses.
+
+    --blockcount=COUNT  Number of invalid tries allowed, before blocking host
+                        (7).  Integer values only.
+    --discard=AGE       Number of hours after which to discard record - if
+                        most recent invalid attempt from IP address is older,
+                        discard that host entry (12).  Integer values only.
+    --whitelist=IP1,IP2,...
+                        A list of IP (IPv4 or IPv6) addresses or regular
+                        expressions that represent a IP. When considering IPs
+                        to block, if that IP address matches any item in this
+                        list, then it will be rejected for the block list -
+                        never blocked. ('127.0.0.1')
+    --blacklist=IP1,IP2,...
+                        When considering IPs to block, if that IP address
+                        matches any item in this list, then it will be
+                        immediately added to the block list, even if
+                        blockcount/COUNT_THRESHOLD may not have been reached.
+                        IP addresses directly specified in this list without
+                        using a regular expression will be immediately added
+                        to the blocked list.  The whitelist takes precedence
+                        over blacklist - so a match in both will mean it is
+                        white-listed. ('')
+
+  Mail specific options:
+    These options apply to the process of sending email.
+
+    --mail              Enable e-mail capability - send message with list of
+                        newly blocked or expired hosts, if any. Email is sent
+                        only if there are error/warning/notice messages in the
+                        log output. (False)
+    --check-ip=IPADDRESS
+                        DEPRECATED. Instead of always mailing entire list of
+                        blocked address, just send email if given IP address
+                        is being blocked (). DEPRECATED - this is no longer
+                        useful since --mail will automatically send email only
+                        on errors/warnings/notices, and the notice level
+                        includes newly blocked or expired addresses.
+    --notify-address=ADDRESS
+                        Address to send notification emails to
+                        (root@localhost.localdomain)
+
+  TCP/IP level blocking options:
+    These options apply to the process of using ip route/iptables commands
+    to block IP addresses. Root permission for the run of this script is
+    needed, since only root can change routing tables or install iptables
+    rules. [This works fine if using hosts.access/hosts.deny to run this
+    script.] All communication to the IP address is blocked at route or
+    packet, therefore, this method of disabling a host will protect even
+    non-tcpwrapper services.
+
+    --ipblock=IP-COMMAND
+                        Enable IP address block capability, using "iptables"
+                        or "ip6tables" or "ip route" command. All
+                        communication to the IP address is blocked using
+                        packet filtering. Use --ipblock=iptables or
+                        --ipblock="ip route", as needed. Full path can also be
+                        provided, e.g. --ipblock=/sbin/ip6tables or
+                        --ipblock="/sbin/ip route" ()
+</pre>
+
+<h3>DETAILS</h3>
+
+<pre>
+    Automatic updates to hosts.allow to block IP addresses based on failed
+    login accesses for ssh/ftp or any such service.
+    
+    Script to record how many times "sshd" or other service is being attacked,
+    and when a particular IP address exceeds a configured number of
+    failed login attempts, that IP address is added to /etc/hosts.allow with
+    the deny flag to prohibit access.
+    Script uses /etc/hosts.allow to store (in comments) count
+    of failed attempts, and date of last attempt for each IP address
+    By default, hosts.allow is used, but program can be configured to use any
+    other file, including /etc/hosts.deny, as needed.
+    IP addresses with expired last attempt dates (configurable)
+    can be removed, to keep /etc/hosts.allow size manageable.
+    This script can be run as the optional command in /etc/hosts.allow
+    itself, so will kick off only when someone connects to a specific service
+    controlled by tcpwrappers, or use cron to periodically run this script.
+    
+    TCP_WRAPPERS should be enabled for all services, which allows use of
+    hosts.allow file.
+    hosts_options should also have been enabled, which requires compile time
+    PROCESS_OPTIONS to be turned on. This allows extensions to the
+    basic hosts.* file line format.  The extensible language supports lines
+    of this format in /etc/hosts.allow:
+        daemon_list : client_list : option : option ...
+    See the man pages for hosts_options and hosts_access(5) for more
+    information.
+    
+    
+    Null Routing and Packet Filtering Blocking
+    Many services do not use libwrap, so cannot use TCP_WRAPPERS blocking
+    methods. Those services can be protected by this script, by using
+    the null routing, or iptables packet filtering to completely block all
+    network communication from a particular IP address.
+    Use the --ipblock=<how> option to enable null routing or packet filtering
+    blocking.
+    Root permission for the run of blockhosts.py script is needed, since
+    only root can change routing tables or install iptables rules. This works
+    fine if using hosts.access/hosts.deny to run this script.
+    Null routing/packet filtering could be used for example, to scan Apache
+    web server logs, and based on that, block an IP address so neither
+    Apache or any other service on the computer will see any network
+    communication that IP address.
+    
+    Mail Notification Support
+    Email notifications can be sent periodically using a cron script, or
+    email can be sent provided a a given IP address is being blocked by
+    blockhosts. Such email notifications include all currently blocked
+    IP addresses in the email message. Will not send email if given IP address
+    is not yet blocked, or if not a single address is being blocked. SMTP is
+    required for sending email.
+    
+    Whitelist and Blacklist Support
+    Lists can be specified to force particular IP addresses to be
+    never blocked (whitelist), or to be immediately blocked (blacklist).
+    The lists contain IP addresses or regular expressions representing IP
+    addresses. This built-in method of whitelist and blacklist provides
+    an easy way to make sure IPs are blocked or never-blocked whatever the
+    configuration of blockhosts.py - using cron or hosts.allow invocation, or
+    using hosts.allow or iptables or route command blocking.
+    
+    Example hosts.allow script:
+    Warnings:
+    * Be sure to keep a backup of your initial hosts.allow (or hosts.deny)
+      file, in case it gets overwritten due to an error in this script.
+    * Do read up on the web topics related to security, denial-of-service,
+      and IP-address spoofing.
+      Visit the blockhosts home page for references.
+    
+    Usage:
+    For more info, run this program with --help option.
+    
+    The blockfile (hosts.allow, or if needed, hosts.deny) layout needs to
+    have a certain format:
+      Add following sections, in this order:
+      -- permament whitelist and blacklist of IP addresses using hosts.allow syntax
+      -- blockhosts marker lines - two lines
+      -- execute command to kick off blockhosts.py on connects to services
+    
+    See "man 5 hosts_access" and "man hosts_options" for more details on
+    hosts.* files line formats.
+    
+    The two HOSTS_MARKER_LINEs define a section, this is the
+    region where blockhosts will read/write IP blocking data in the
+    hosts.allow file. It will use comments to store bookkeeping data needed
+    by this script in that section, too.
+    Lines before and after the two HOST_MARKER_LINEs will be left unchanged
+    in the hosts.allow file
+    
+    See the "INSTALL" file in the blockhosts.py source package for a
+    detailed example of the hosts.allow file.
+    
+    ====
+    Requirements:
+        1: Python 2.3 or later, need the optparse module.
+    
+        2: Primarily uses host control facility and related files such as
+           hosts.access. If not using TCP/IP blocking, then the extensions to
+           the access control language as described in the man 5 hosts_options
+           page are required, which allow use of :allow and :deny keywords.
+           ["...extensions  are  turned  on  at program build time by
+           building with -DPROCESS_OPTIONS..."]
+    
+        3: If not using host control facilities (tcpd, hosts.access, etc),
+           then there needs to be a way to trigger the run of blockhosts.py,
+           or blockhosts.py should be run periodically using cron. Secondly,
+           there must be some way to update a file to list the blocked ip
+           (for example, hosts.deny file, or Apache .htaccess file, etc).
+           Alternately, all TCP/IP communication can be blocked by using the
+           null-routing or packet filtering options of blockhosts.py
+    
+    ====
+    BlockHosts Script License
+    This work is hereby released into the Public Domain.
+    To view a copy of the public domain dedication, visit
+    http://creativecommons.org/licenses/publicdomain/ or send a letter to
+    Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
+    
+    Author: Avinash Chopde <avinash@aczoom.com>
+    Created: May 2005
+    http://www.aczoom.com/blockhosts/
+    
+    
+See file INSTALL for installation instructions.
+
+See file blockhosts.cfg for site configuration parameters.
+
+Visit blockhosts home page and forum for details and discussions.
+
+</pre></body></html>
+

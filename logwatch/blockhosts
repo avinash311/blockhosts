@@ -1,0 +1,193 @@
+##########################################################################
+##########################################################################
+# 
+# 20 Dec 2007 Update: added blacklist summaries, errors/warnings report
+# 15 Dec 2007: Created
+#
+# Dec 2007: Written by Avinash Chopde <avinash@acm.org> for blockhosts.py
+# blockhosts.py home page: http://www.aczoom.com/cms/blockhosts
+#
+##########################################################################
+
+use strict;
+use Logwatch ':ip'; # LookupIP: printf "%15s : %s\n", $ip, LookupIP($ip);
+
+my $Debug = $ENV{'LOGWATCH_DEBUG'} || 0;
+my $Detail = $ENV{'LOGWATCH_DETAIL_LEVEL'} || 0;
+my $DebugCounter = 0;
+
+my %Blocked = ();
+my %Expired = ();
+
+# IP in watched list, but removed because it matched whitelist
+my %WhitelistWatched = ();
+
+# IP in blocked list, but removed because it matched whitelist
+my %WhitelistBlocked = ();
+
+# IP in watched list (count not yet reached high enough to block),
+# but force blocked because it matched blacklist
+my %BlacklistWatched = ();
+
+# IP not in watched list, but force blocked because blacklist contained IP
+my %BlacklistBlocked = ();
+
+my @ErrorList = ();
+my @OtherList = ();
+
+my $MultipleBlockingsOKCount = 3;
+# ok to have same ip blocked these many times - to account for
+# blockhosts.py timing interaction issues - delays between an IP is
+# blocked and when the system actually blocks network packets, delay
+# in reading and writing the system log, etc
+# Value should be 1 or greater, 3 is probably most appropriate
+# the goal here is to catch the egregious errors - an ip is blocked,
+# but the system allows it to connect to services hundreds of times
+# as it probes and sends data to the ports.
+
+if ( $Debug >= 5 ) {
+   print STDERR "\n\nDEBUG: Inside BlockHosts Filter \n\n";
+   $DebugCounter = 1;
+}
+
+while (defined(my $ThisLine = <STDIN>)) {
+   if ( $Debug >= 5 ) {
+      print STDERR "DEBUG($DebugCounter): $ThisLine";
+      $DebugCounter++;
+   }
+   chomp($ThisLine);
+   if (
+      ($ThisLine =~ /DEBUG: xxx/) or
+      ($ThisLine =~ /WARNING: xxx/)
+      ) {
+      # Ignore these
+   } elsif ( my ($Count, $Host) = ($ThisLine =~ m/Notice: count=(\d+), blocking host:\s+(\S+)/)) {
+# Notice: count=%d, blocking host:  85.233.103.238 
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Found Newly Blocked: $Host\n";
+      }
+      $Blocked{$Host}++;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: removing expired host:\s+(\S+)/)) {
+# Notice: removing expired host: %15s
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Found Just Expired: $Host\n";
+      }
+      $Expired{$Host}++;
+   } elsif ( my ($Host, $Count) = ($ThisLine =~ m/Notice: whitelist: removing watched host:\s+(\S+), count=(\d+)/)) {
+# Notice: whitelist: removing watched host: %15s, count=%d
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Whitelist removal of watched: $Host\n";
+      }
+      $WhitelistWatched{$Host} += $Count;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: whitelist: removing blocked host:\s+(\S+)/)) {
+# Notice: whitelist: removing blocked host: %15s
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Whitelist removal of blocked: $Host\n";
+      }
+      $WhitelistBlocked{$Host} += 1;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: blacklist: blocking host:\s+(\S+)/)) {
+# Notice: blacklist: blocking host: %15s
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Blacklist blocking: $Host\n";
+      }
+      $BlacklistBlocked{$Host} += 1;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: blacklist: blocking watched host:\s+(\S+), /)) {
+# Notice: blacklist: blocking watched host: %15s, matched '%s'
+      if ( $Debug >= 5 ) {
+         print STDERR "DEBUG($DebugCounter): Blacklist immediately blocking watched: $Host\n";
+      }
+      $BlacklistWatched{$Host} += 1;
+   } elsif ($ThisLine =~ /^(error|warning):/i) {
+      push @ErrorList, "$ThisLine\n";
+   } else {
+      # Report any unmatched entries...
+      push @OtherList, "$ThisLine\n";
+   }
+}
+
+###########################################################
+
+# Blocked IPs 
+if (keys %Blocked) {
+   printf("\nBlocked hosts: %d\n", scalar keys %Blocked);
+   while ( my ($ip, $count) = each(%Blocked) ) {
+      if ($count > $MultipleBlockingsOKCount) {
+         printf("  %-15s  (%d times! <-- WARNING! Blocking not effective?)\n", $ip, $count)
+      } else {
+         printf("  %-15s\n", $ip) if ($Detail >= 5);
+      }
+   }
+}
+
+
+# Removed Blocked IPs 
+if (keys %Expired) {
+   printf("\nRemoved blocked hosts: %d\n", scalar keys %Expired);
+   if ($Detail >= 5) {
+      while ( my ($ip, $count) = each(%Expired) ) {
+         printf("  %-15s\n", $ip)
+      }
+   }
+}
+
+
+# Whitelist activity
+if (keys %WhitelistWatched) {
+   printf("\nWhitelist-based removal of suspect hosts: %d\n", scalar keys %WhitelistWatched);
+   if ($Detail >= 5) {
+      while ( my ($ip, $count) = each(%WhitelistWatched) ) {
+         printf("  %-15s\n", $ip)
+      }
+   }
+}
+
+
+if ($Detail >= 5) {
+   if (keys %WhitelistBlocked) {
+      printf("\nWhitelist-based removal of auto-blacklisted hosts: %d\n", scalar keys %WhitelistBlocked);
+      while ( my ($ip, $count) = each(%WhitelistBlocked) ) {
+         printf("  %-15s\n", $ip)
+      }
+   }
+}
+
+
+# Blacklist activity
+if (keys %BlacklistWatched) {
+   printf("\nBlacklist-based immediate blocking of watched hosts: %d\n", scalar keys %BlacklistWatched);
+   if ($Detail >= 5) {
+      while ( my ($ip, $count) = each(%BlacklistWatched) ) {
+         printf("  %-15s\n", $ip)
+      }
+   }
+}
+
+if ($Detail >= 5) {
+   if (keys %BlacklistBlocked) {
+      printf("\nBlacklist-based force blocking of non-watched hosts: %d\n", scalar keys %BlacklistBlocked);
+      if ($Detail >= 5) {
+         while ( my ($ip, $count) = each(%BlacklistBlocked) ) {
+            printf("  %-15s\n", $ip)
+         }
+      }
+   }
+}
+
+
+# Errors and Warnings
+if ($#ErrorList >= 0) {
+   print "\n**Errors and Warnings**\n";
+   print @ErrorList;
+}
+
+# unrecognized lines
+if ($Detail > 5) {
+   if ($#OtherList >= 0) {
+      print "\n**Unmatched Entries**\n";
+      print @OtherList;
+   }
+}
+
+exit(0);
+
+# vi: shiftwidth=3 tabstop=3 syntax=perl et

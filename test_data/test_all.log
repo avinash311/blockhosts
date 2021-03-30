@@ -1,0 +1,99 @@
+# Used by test_blockhosts.py
+# all valid matches are 10.1nn.x.y, where x should be number of times
+# that IP address should appear in the watched list.
+# all other IP addresses are assumed to be invalid, and should not show up
+# in watched list in blockhosts.py
+# (all fake, log injection attack addresses are 10.10.10.10 in this file)
+# 
+# --- SSHD: ----------------------- (10.100.)
+Jul 19 06:47:27 servername sshd[1768]: Invalid user xxx from 10.100.1.1
+Nov 16 04:57:19 servername sshd[1668]: Illegal user yyy from ::10.100.1.2
+Jul 19 06:58:23 servername sshd[2821]: User root from 10.100.1.3 not allowed because none of user's groups are listed in AllowGroups
+Apr 20 12:34:30 servername sshd[9701]: Failed password for invalid user root from 10.100.1.4 port 35993 ssh2
+Nov 24 00:18:58 servername sshd[9000]: Invalid user xxx from 10.100.2.5
+Nov 15 04:57:19 servername sshd[1668]: Illegal user yyy from ::ffff:10.100.2.5
+# Solaris 10 SSH - has a [ID] in it
+Oct  4 12:04:50 servername sshd[1110]: [ID 800047 auth.info] Illegal user slime from 10.100.1.6
+# SSH Log Injection Attacks
+Oct 28 18:48:25 servername sshd[8075]: Invalid user foo from 10.10.10.10 from 10.100.1.7
+# date has single digit, not sure if this is valid logline, accept it anyway
+Oct  6 14:12:40 servername sshd[7907]: [ID 800047 auth.notice] Failed none for rosach from 10.100.1.8 port 50205 ssh2
+# not matching following yet
+Jun  4 14:49:46 servername sshd[4153]: Bad protocol version identification 'sshd[123]: User myself from 10.10.10.10 not allowed ' from 10.100.1.9
+# SourceMage Linux logs - metalog format? accept this, too.
+Dec 17 11:57:08 [sshd] Failed password for invalid user administrator from 10.100.1.10 port 25132 ssh2
+# multilog format - made this up, have not received actual reports yet
+@400000003b4a39c23294b13c Failed password for invalid user administrator from 10.100.1.11 port 25132 ssh2
+# This is a separate test  - tests config IGNORE_DUPLICATES=True
+# Multiple log entries for same login attempt, count should be max# of same log messages
+Nov 24 00:18:55 servername sshd[1174]: Failed password for root from ::ffff:10.100.6.9 port 36263 ssh2
+Nov 24 00:18:58 servername sshd[1174]: Invalid user xxx from 10.100.6.9
+Nov 24 00:18:55 servername sshd[1174]: Failed password for root from ::ffff:10.100.6.9 port 36263 ssh2
+Nov 24 00:18:55 servername sshd[1174]: Failed password for root from ::ffff:10.100.6.9 port 36263 ssh2
+Nov 24 00:18:58 servername sshd[1174]: Invalid user xxx from 10.100.6.9
+# different PID, so should always be counted, never duplicate
+Nov 24 00:18:58 servername sshd[1175]: Invalid user xxx from 10.100.6.9
+# --- ProFTPD: ----------------------- (10.101.)
+May 29 22:38:10 servername proftpd[28865]: hostname (10.101.1.1[10.101.1.1]) - USER validuser (Login failed): Incorrect password.
+May 29 22:40:20 servername proftpd[28879]: hostname (10.101.1.2[10.101.1.2]) - USER aaa: no such user found from 10.101.1.2 [10.101.1.2] to 192.168.0.1:21
+May 30 07:31:55 servername proftpd[1450]: hostname (10.101.1.3[10.101.1.3]) - SECURITY VIOLATION: root login attempted.
+Oct 30 11:04:14 servername proftpd[2162]: hostname (10.101.1.4[10.101.1.4]) - USER anonymous: no such user found from 10.101.1.4 [10.101.1.4] to 192.168.0.1:21 
+# Debian etch report: [pid] is not followed by :
+Jan 14 11:08:19 servername proftpd[00000] servername.domain.ca (10.101.1.5[10.101.1.5]): USER testuser (Login failed): Incorrect password.
+# from a ubuntu forum
+Nov 01 10:27:18 servername proftpd[5471] localhost.localdomain (::ffff:10.101.1.6[::ffff:10.101.1.6]): USER test (Login failed): Incorrect password.
+ 
+# --- VSFTPD:  ----------------------- (10.102.)
+Fri Jan 21 15:56:57 2005 [pid 6726] [test] FAIL LOGIN: Client "10.102.1.1"
+# vsftpd, but with pam_unix, not matching pam_unix for now
+Dec 25 21:18:58 servername vsftpd(pam_unix)[21989]: authentication failure; logname= uid=0 euid=0 tty= ruser= rhost=10.102.1.2
+# vsftpd - note same vsftpd process handles all FAIL login
+# statememnts - so process-ids' same, and all these count as single attack!
+Wed Feb  1 07:15:43 2006 [pid 8860] [user1] FAIL LOGIN: Client "::ffff:10.102.1.3"
+Wed Feb  1 07:15:48 2006 [pid 8860] [user2] FAIL LOGIN: Client "10.102.1.4"
+Wed Feb  1 07:15:54 2006 [pid 8860] [user3] FAIL LOGIN: Client "10.102.1.5"
+Wed Feb  1 07:16:00 2006 [pid 8860] [user4] FAIL LOGIN: Client "::ffff:10.102.1.6"
+# vsftpd log injection
+Mon Jun 2 21:06:02 2007 [pid 1452] [lala] FAIL LOGIN: Client "10.10.10.10" ] FAIL LOGIN: Client "10.102.1.7"
+# http://www.aczoom.com/cms/forums/blockhosts/cant-open-or-read-var-log-secure
+Jun 23 17:03:04 servername vsftpd[25249]: Sat Jun 23 15:03:04 2007 [pid 25249] [anonymous] FAIL LOGIN: Client "10.102.1.8"
+
+# --- Pure-FTPd ----------------------- (10.103.)
+May 17 16:13:29 servername pure-ftpd: (?@10.103.1.1) [WARNING] Authentication failed for user [username]
+
+# --- Solaris 10 ftpd  ----------------------- (10.104.)
+Mar 23 16:52:51 servername ftpd[1322]: [ID 122736 daemon.info] failed login from 10.104.1.1 [10.104.1.1], [unknown]
+Apr 16 17:01:19 servername ftpd[18088]: [ID 122736 daemon.info] failed login from hostname [10.104.1.2], [unknown]
+ 
+# --- ipop3d POP3 ----------------------- (10.105.)
+# is the word ipop3d really in front of the line? probably incorrect report.
+# ipop3d Aug 18 16:27:38 servername ipop3d[2540]: Login failed user=username auth=username host=hostname [10.105.1.1]
+Aug 18 16:27:38 servername ipop3d[2540]: Login failed user=username auth=username host=hostname [10.105.1.1]
+
+# --- Dovecot POP3 ----------------------- (10.106.)
+Feb 19 15:40:23 servername pop3-login: Aborted login [::ffff:10.106.1.1]
+Jun 24 18:41:41 hostname dovecot: pop3-login: Aborted login: user=, method=PLAIN, rip=::ffff:10.106.1.2, lip=::ffff:10.191.11.13
+
+# --- Qpopper POP3 ----------------------- (10.107.)
+Mar 24 11:49:56 servername qpopper[16765]: abraham at hostname (10.107.1.1): -ERR [AUTH] Password supplied for "baduser" is incorrect.
+
+# --- postfix ----------------------- (10.108.)
+Jul 21 18:42:30 host postfix/smtpd[15919]: NOQUEUE: reject: RCPT from host2.example.com[10.108.1.1]: 550 5.1.1 : Recipient address rejected: User unknown in virtual alias table; from=<> to= proto=ESMTP helo=
+Sep 13 13:02:42 host postfix/smtpd[25355]: warning: 10.108.1.2: address not listed for hostname ds1.example.com
+Sep 12 15:59:01 host postfix/smtpd[7385]: warning: unknown[10.108.1.3]: SASL PLAIN authentication failed: authentication failure
+Sep 12 15:59:01 host postfix/smtpd[7385]: warning: unknown[10.108.1.4]: SASL LOGIN authentication failed: authentication failure
+Sep 25 01:37:31 host postfix/smtpd[6961]: warning: 10.108.1.5: hostname host-10-98-234-178.example.com verification failed: Name or service not known
+Sep 26 00:17:06 host postfix/smtpd[3457]: warning: non-SMTP command from 10-224-32-204.example.com[10.108.1.6]: Subject:10.245.3.95
+
+# ----------------------------------------------------------------------------------------
+# IPV6
+Nov 24 00:18:55 servername sshd[214]: Failed password for root from beef:beef:1:dead::3 port 4 ssh2
+# Multiple log entries for same login attempt, count should be max# of same log messages
+Nov 23 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 24 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 25 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 26 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 27 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 28 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+Nov 29 00:18:55 servername sshd[214]: Failed password for root from beef:beef:7:dead::a port 4 ssh2
+# ----------------------------------------------------------------------------------------

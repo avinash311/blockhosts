@@ -1,0 +1,491 @@
+2.7.0  September 23, 2012:
+
+ * Now with IPV6 support. This is preliminary, not fully tested yet.
+   blockhosts.cfg changed to allow for IPv6 indicators, HOST_BLOCKLINE replaced with:
+   #HOST_BLOCKLINE_IPv4 = ["ALL: ",   " : deny"]
+   #HOST_BLOCKLINE_IPv6 = ["ALL: [", "] : deny"]
+
+ * Minor updates to support Ubuntu, logwatch files updated.
+
+ * Removed bhrss.py, the RSS feed of blocked addresses was not really that useful.
+
+2.6.0  June 18, 2011: 
+
+ * Python strptime problem. On some systems, fails to read time written
+   by strftime on same system, get this error:
+   ValueError: time data '2011-06-16 10:46:10 WEST' does not match format '%Y-%m-%d %H:%M:%S %Z'
+   Code changed to not rely on Python time.strptime anymore, uses epoch UTC 
+   number of seconds now. The orignal reason for using strftime was to show
+   human readable date/time in hosts.allow. That is still done, but in
+   hosts.allow comments only.
+   See bug report in: http://www.aczoom.com/forums/blockhosts/mar-10-151801-domains-blockhosts5599-error-failed-to-parse-date-for-ip-18911419951#comment-5386
+   Example hosts.allow lines now:
+   #--------- IP Address    :count: epoch secs   # local time ------------
+   #bh: ip:   10.141.193.46 :   8 : 1308341273.0 # 2011-06-17 16:07:53 EDT
+   #bh: ip:  10.102.213.133 :   2 : 1308341245.0 # 2011-06-17 16:07:25 EDT
+
+2.5.1  March 18, 2011: 
+
+ * Packaging problem - running bdist_rpm on newer systems inserts a hard
+   dependency "python(abi) = 2.6" for this noarch package, which creates
+   unnecessary problems. So, for now moved back to creating installer on
+   older machines where bdist_rpm does not add that line. Just a workaround
+   for now to fix the problems reported by multiple users.
+   Installing from source always works, bdist_rpm is touch and go.
+
+ * Change blockfile time parsing failure from Log.Error to Log.Warning,
+   since using default time (start of blockhosts.py execution) is fine,
+   and warning is sufficient to indicate that something is wrong in blockfile.
+
+ * tests updated: test_all.log with duplicate IP but different PID
+
+2.5.0  August 14, 2010: 
+
+ * Added config variable for IGNORE_DUPLICATES - to try to detect when
+   multiple log messages actually refer to a single failed login attempt.
+   IGNORE_DUPLICATES is now turned off by default. It has been improved
+   with this update, but even then, the danger is that a false positive
+   for a duplicate means that a failed login attempt goes uncounted.
+   So, even though it works better now, by default, this is disabled.
+   Can be enabled in the blockhosts.cfg config file, search for
+   IGNORE_DUPLICATES in that file for more information.
+
+ * dovecot-LoginFailRip rule added, for dovecot.
+   Note that dovecot is not enabled by default, see ENABLE_RULES
+   in .cfg or command line --enable-rules option.
+
+ * make a call to setlocale at the start, to allow for \w to match
+   accented characters (seen in syslog month printing), etc
+
+ * bhrss.py update: remove xml.dom.ext since it is no longer available,
+   and use xml.dom.minidom.toprettyxml instead of xml.dom.ext.PrettyPrint
+
+ * removed very old config file example: test_data/test_v203.cfg
+
+2.4.0  May 17, 2008: 
+
+ * iptables chains are now inserted at the beginning of INPUT chain,
+   this will handle the case when the site has a default policy 
+   of DROP (and it will continue to still work if the default policy is
+   ACCEPT).
+   http://www.aczoom.com/forums/blockhosts/iptables-firewall-and-blockhosts
+   has a brief discussion on this.
+
+ * Fix commented line in /etc/blockhosts.cfg - previously, uncommenting
+   it would have caused problems, correct way to enable all rules:
+   #ENABLE_RULES = r'.*' # use this to enable all rules
+
+2.3.1  January 14, 2008: 
+
+ * Log matches now allow the : after [pid] to be optional.
+   Received report from a Debian (etch) log, which does not print
+   a colon after the [pid], so modified LOG_PREFIX to handle optional :
+   after the [pid].
+   Also saw similar log lines in a ubuntu forum.
+
+2.3.0  December 27, 2007: 
+
+ * added patterns to handle reported Source Mage GNU/Linux log files,
+   probably from metalog (syslog replacement)
+   
+ * added support for keywords in blockhosts.cfg to make rules easier
+   to write:
+   {LOG_PREFIX{service-name}} and {HOST_IP} 
+
+ * logwatch scripts updated to include blacklist activity
+
+2.2.0  December 15, 2007: 
+
+ * logwatch scripts added - these will get installed if the 
+   /etc/logwatch/... directories exist on the system. On systems
+   where logwatch is setup to send summary emails, now blockhosts
+   summaries will be included.
+
+ * --mail will now send mail if there are any error/warnings/notices
+   in the log output, otherwise no email will be sent.
+   Removed MAIL_LOG_MESSAGES configuration option from blockhosts.cfg,
+   it is not necessary - if email has to be sent, it will include 
+   all text from the log output (log level is controlled by --verbose,
+   --debug, --quiet)
+
+ * --check-ip will be removed in a future release, since the new
+   Notice logging level handles printing out newly blocked and
+   expired host ip addresses and --mail has been modified to send
+   email on such activity.
+
+ * blockhosts.cfg -> All rules names now follow this pattern:
+   servicename-word as pattern for id, with no "-" dash in final word,
+   examples: "ftpd-Solaris", "postfix-smtpdInvalidHostname"
+
+2.1.1, 2.1.2, November 10, 2007: 
+
+ * replaced the --iptables and --iproute options with:
+     --ipblock=iptables and --ipblock="ip route" respectively. Can
+   optionally accept full path for iptables or ip commands, example:
+     --ipblock=/sbin/iptables or --ipblock="/sbin/ip route"
+   This allows full path to be specified, useful for cron jobs where
+   /sbin may not be in the PATH environment variable.
+
+ * added try/except for re.compile when using BLACKLIST or WHITELIST
+   user-provided regular expressions
+
+ * handle blockfile with invalid time - assume time of now. Ex:
+#bh: ip:  10.171.123.83 :   6 : 2007-11-06 08:39:41 EST
+   is how a EST system might look like, but if someone copies over
+   a hosts.allow from a different system, say with PST, etc, then
+   the EST system Python strptime call may fail - this is now handled as a
+   non-fatal error by assigning time of now if date parsing fails
+
+ * using new regex for IP_STR matches - tighter than earlier pattern.
+   Not really needed since strict IP matching is not really necessary.
+#old IP_STR = r"(::ffff:)?(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"
+#new IP_STR = r"(::ffff:)?(?P<ip>(2[0-4]\d|25[0-5]|1?\d\d?)(\.(2[0-4]\d|25[0-5]|1?\d\d?)){3})"
+
+2.1.0, September 30, 2007: 
+
+ * Based on multiple requests for whitelist and blacklist support, even
+   though these can be done using hosts.allow or rc.local with iptables/route
+   commands, have now added this support directly in blockhosts to make
+   it easier to manage such lists.
+
+   Lists can be specified to force particular IP addresses to be
+   never blocked (whitelist), or to be immediately blocked (blacklist).
+   The lists contain IP addresses or regular expressions representing IP
+   addresses.
+   See the blockhosts.cfg as well as --help for the --blacklist and
+   --whitelist options.
+
+ * Re-organized the code - with so many different ways available to
+   filter the suspect IP addresses, created a uniform interface to easily
+   add newer methods to take (blocked, watched) lists and manipulate it as
+   needed. This could be used in future to add more and more filtering
+   options, and use a plugin mechanism, and make the list of filters
+   user-controllable. The BHUpdatePlugins class enables this.
+
+ * added rules for postfix/smtpd authentication failures, but these
+   are not enabled by default in blockhosts.cfg
+
+2.0.6, September 18, 2007: 
+
+ * Handle the case where the first line in the log file has spaces at end,
+   example:
+#bh: first line:Sep 16 07:33:32 bombay5 su: pam_keyinit(su-l:session): Unable to change UID back to 0 
+   Because of the trailing space character, blockhosts.py failed to
+   recognize the log file as having been previously processed, and on
+   each run would re-scan full log file. This nly occurs if the first line
+   in the watched log files (/var/log/secure, messages, etc) has
+   trailing space characters.
+
+ * Minor edits to the email subject line, and log messages on removing
+   expired address now indicate if removed address was blocked or watched
+
+ * Added rule for Postfix-550, forum posting:
+   http://www.aczoom.com/forums/blockhosts/help-with-postfix-rule-please
+
+2.0.5, June 24, 2007: 
+
+ * Send email when hosts expire off the watched list also
+
+ * Add option --enable-patterns and config corresponding keyword
+   ENABLE_PATTERNS to allow rules to be enabled/disabled on the fly
+
+ * Expanded VSFTPD-Fail pattern to recognize lines that contain the
+   word "vsftpd", for example lines like:
+Jun 23 17:03:04 servername vsftpd[25249]: Sat Jun 23 15:03:04 2007 [pid 25249] [anonymous] FAIL LOGIN: Client "10.102.1.8"
+
+ * On EAGAIN error for lockfile, indicating another instance of
+   blockhosts is running, don't print FATAL ERROR, since all it means is
+   that another instance is doing all the work.
+   So a info level message is now printed, seen with --verbose or --debug
+
+ * Source kit now includes the test script test_blockhosts.py and
+   supporting test data files in test_data/ directory.
+ 
+2.0.4, June 7, 2007: 
+
+ * Fixed all regexs, based on log injection analysis at this site:
+       http://www.ossec.net/en/attacking-loganalysis.html
+   Changes protect against log injection that force blockhosts to block
+   any arbitrary IP address.
+
+ * moved email notification after iptables/iproute is done, so that data
+   is included in email message
+
+2.0.3, May 17, 2007: 
+
+ * fixed invalid Error message when --iptables is on. It is not an error
+   when the command to create chain is run multiple times.
+   This was only a message issue, program was setting iptables correctly.
+
+ * fixed Solaris ftpd pattern in blockhosts.cfg
+
+ * fixed log scanning: changed .*? to .* in appropriate patterns.
+   Bug allowed remote attackers to add arbitrary hosts to the blocked list
+   and cause a denial of service. Demonstratable by logging in to ssh
+   using a login name containing certain strings with an IP address
+   Similar issue as this:  http://nvd.nist.gov/nvd.cfm?cvename=CVE-2006-6301
+
+ * added rule for Qpopper POP3 server access failures
+   This is commented out by default, so needs to be manually enabled
+   in config file blockhosts.cfg.
+
+ * added LICENSE file to RPM package, updated setup.cfg
+
+ * removed P<user> from regular expressions, it was not used at all
+
+2.0.2, April 1, 2007: 
+
+ * ALL_REGEX_STRS are now read from the config file - no longer embedded
+   in the code. Therefore, blockhosts.cfg is now required, not optional.
+   This also makes it easy to turn on/off all the patterns, helpful since
+   the list of patterns has grown large.
+   Other than SSH/FTP log checks, all other patterns are now commented
+   out, so should be re-enabled in blockhosts.cfg if needed.
+
+ * mail messages can now include the log statements, see MAIL_LOG_MESSAGES
+   boolean flag in blockhosts.cfg
+
+ * copied requirements to clarify that extended version of hosts access
+   control language as described in man hosts_options is required for
+   using hosts.access/hosts.deny control methods - copied this to INSTALL
+   file from blockhosts.py
+
+ * (2.0.0) Old ALL_REGEX renamed to ALL_REGEX_STRS for configuration - no
+   need to prefix with re.compile(, just provide raw string in that dict
+
+ * "Charaoui, Jerome" <jcharaoui@cmaisonneuve.qc.ca> sent in Proftpd log
+   lines that don't have a : after the PID, so updated the rules to
+   make : optional after the PID
+
+ * handle error return from iproute/iptables commands
+
+ * fixed bug in config file LOCKFILE handling - should be accepted in the
+   blockhosts section, not in common section
+
+ * added rule for Solaris 10 ftpd failures
+
+2.0.1, March 4, 2007: 
+
+ * cleaned up TCP/IP Blocking options - now called --iproute and
+   --iptables to be clearer as to their intent
+   --ipdrop no longer available, this is replaced by --iproute
+
+ * removed previously deprecated bhmail.py script, use
+   --mail option for same functionality in blockhosts.py
+
+ * made all time/format/constants to be class variables of main Config
+   class instead of module globals
+
+ * message level options (--verbose, --debug, --quiet, etc) can now be
+   set in the config file using the VERBOSE key
+
+2.0.0, March 3, 2007: 
+
+ * NOTE: blockhosts.cfg now updated with some incompatible changes, so 
+   will need manual merge for any locally modified blockhosts.cfg file
+
+ * blockhosts now has direct support for email notification, see 
+   --mail option
+
+ * added null routing and ip tables packet filtering functionality, this
+   will enable blocking protection for all services, not just TCP
+   WRAPPERS enabled services. See options
+   --ipdrop
+   --iptables
+
+ * Removed the --block (BLOCK_SERVICES) option, a more general way to
+   define the lines to add to hosts.allow or other block files is
+   available by using the HOST_BLOCKLINE configuration in the config file
+
+ * Configuration file is now required, either the default file
+   (/etc/blockhosts.cfg) or the one specified in the --config option
+   must be readble by blockhosts.py
+
+ * added bhrss.py script to provide RSS feeds of currently blocked
+   address, as well as addresses just being watched:
+
+   http://....../cgi-bin/bhrss.py              [to get all blocked]
+   http://....../cgi-bin/bhrss.py?q=watching   [to get all blocked as well as watched addresses]
+
+ * removed use of datetime module, now using the basic time module, which
+   handles local time zones as expected, unlike datetime.
+
+ * change time display format in block file (hosts.allow) to follow ISO
+   format - YY-MM-DD HH:MM:SS
+   old time format will be supported for reading in (used when new
+   version is first run)
+
+ * deprecated the script bhmail.py, it will go away in a future release
+   since the --mail option supports all that functionality
+
+1.1.0, February 19, 2007: 
+
+ * added bhmail.py helper script to send email on newly blocked IP, with
+   list of all currently blocked addresses
+
+ * re-arranged config file /etc/blockhosts.cfg - now includes global
+   section, and separate sections for blockhosts.py and bhmail.py
+
+ * added (::ffff:)? before all P<host> matches in regular expressions
+
+ * add the blocked IP address sorted by date added, newest first 
+
+ * add rule to block Dovecot IMAP/POP3 server failures, previously had
+   also added rule to block ipop3d login failures, and PureFTPD failures
+
+1.0.7, January 2, 2007: 
+
+ * problem with shipped example blockhosts.cfg - need line 126 to have
+   four spaces in front of the curly brace closing ALL_REGEX
+
+1.0.6, January 1, 2007: 
+
+ * added RPM package back, using workaround mentioned in the BlockHosts forum:
+   add this line to /etc/rpm/macros:
+%_unpackaged_files_terminate_build 0
+   Also added logrotate file to distribution install to /etc/logrotate.d
+
+1.0.5, December 27, 2006: 
+
+ * Not including noarch.rpm with this release - the scripts that used to
+   work, no longer work, and from searching on the web, this may be
+   a distutils/rpmbuild interaction problem. For now, use the non-RPM
+   install instructions to install this program, INSTALL has details.
+   Ref: http://www.mail-archive.com/distutils-sig@python.org/msg02536.html
+   But the fix mentioned in that email thread did not fix blockhosts rpm
+   build.
+
+ * Expanded SSHD-Invalid regexp: got new form of a log line - has [ID] in it, 
+   now able to catch this:
+Oct  4 12:04:50 hostname.host.net sshd[1110]: [ID 800047 auth.info] Illegal user slime from 10.10.102.101
+
+ * Fixed bug: --ignore-offset was not being acted upon
+
+ * Fixed bug: exception when blockfile is not update-able -
+   update_hosts_blockfile, around line 705:
+   UnboundLocalError: local variable 'fp' referenced before assignment
+   Now, if blockfile (usually /etc/hosts.allow) cannot be written to,
+   prints appropriate message.
+
+ * Added logrotate configuration, in case verbose logging to
+   /var/log/blockhosts.log is being used, also updated INSTALL file to
+   point out that it is not necessary to use verbose logging, the minimal
+   logging using syslog (which usually goes to /var/log/messages) is
+   enough. File added to distribution is called: logrotate
+   This is courtesy of an email from Santeri P., with some modifications.
+
+1.0.4, February 18, 2006: 
+
+ * Make P<pid> optional in the regexs, match a PID group only if it is
+   necessary to restrict matches to IP-PID unique keys and not just IP
+   For example, SSHD uses the PID to ignore duplicate log line matches
+   from the same SSHD process.
+   But for VSFTPD, which uses a single process and allows any number of
+   login failures in one connection, each log line should be counted even
+   though the PID is the same for those log lines.
+
+ * Added comment about how using tcpd wrappers for VSFTPD is not really
+   helpful since vsftpd allows unlimited password attempts on a single
+   connection. This is now documented in README.
+
+ * Added rule for Pure-FTPd, from a posting in the BlockHosts forum.
+
+1.0.3, November 06, 2005: 
+
+ * SSHD-Invalid rule now accepts "Invalid" or "Illegal" words.
+   "Illegal" was added based on a report regarding Debian linux installs.
+
+1.0.2, October 29, 2005: 
+ * Added back check for "Failed password.." line in addition to "Invalid
+   user".
+   This is needed when PasswordAuthentication is yes, and PermitRootLogin
+   is no. In this case, sshd only prints a "Failed password" line, does
+   not print "Invalid user" line.
+   For non-root users, both lines are printed. To prevent double counting
+   of the IP address for the same connection, blockhosts.py now looks at
+   process-id also, and will only count one failure per process id.
+
+1.0.1, October 26, 2005: 
+
+ * .cfg file changed to include "Invalid user" matches, and disabled the
+   "Failed Password " match.  Looks like sshd always puts a "Invalid user"
+   line irrespective of passwords yes/no.
+   It puts "Failed password" line if PasswordAuthentication is "no"
+   in sshd_config, in which case, it also puts out the "Invalid user"
+   line.  So, to cover the most cases, I've now disabled the
+   "Failed password" line by default, and enabled the "Invalid user" line
+   instead.
+   Same change applied to built-in rules in blockhosts.py
+   Thanks to Paul Eden <paul@benchline.org> for an email mentioning log
+   behavior when PasswordAuthentication is "no", that led me to this
+   simplifying of the blockhosts rules.
+
+1.0.0, June 11, 2005: 
+
+ * First official release.
+
+ * Support for --discard=0, which will expire all counts/hosts, and start
+   counting afresh from that point in time. Useful for the first run
+   of this program, to start with a clean slate. Without this, it will
+   take one cycle (default 12 hours) to get all really old IP addresses
+   cleaned out.
+
+ * Added --echo "tag" option, see example shown in the INSTALL file, for
+   use in the hosts.allow file to pass client and server info to
+   blockhosts.py. This echo tag can be used to identify particular
+   execution of blockhosts.py - which client kicked it off, and name of
+   the server daemon invoked.
+
+ * Updated INSTALL with rpm install instructions.
+
+0.9.0, May 30, 2005: 
+
+ * Removed import of mx.Tools.NewBuiltins, use eval() for all .cfg file
+   input, since eval() has to be used for atleast one of the lines anyway
+
+ * Switched to using "ProFTPD" instead of "VsFTPD" as the default.
+   Removed /var/log/vsftpd.log from default logfiles.
+   Now only reads from /var/log/secure
+   This is enough for sshd & proftpd
+   [I could not get vstpd to work on Fedora FC3, ProFTPD worked, so
+   switched to ProFTPD.]
+
+ * Minor updates to --help output; added more info in INSTALL file
+
+ * Added syslog() updates - only errors and final non-error message with
+   updated counts is sent to syslog
+
+ * Updated makefile to produce a "man page"
+
+0.5.0, May 17, 2005: 
+ * Important: by default, this program now uses /etc/hosts.allow as the
+   hosts-block-file.
+   hosts.deny is being deprecated on some platforms, additionally,
+   this will make things simple since a single file - hosts.allow can be
+   used to both allow or deny a host.
+
+ * Important: argument name changed:
+   new name: --blockfile <hosts-block-file-name> 
+   is to be used instead of the old --denyfile
+   The default value for this is "/etc/hosts.allow", so to get old
+   behavior, use --blockfile=/etc/hosts.deny
+
+ * To support above, the blockhosts.cfg option HOSTS_DENYFILE changed to
+   HOSTS_BLOCKFILE
+
+ * Added more documentation, INSTALL file has instructions and example
+0.5.1, - bug fix:
+ * 
+
+0.4.0, May 15, 2005: 
+ * Bug fixed, line 802, offset may be left uninitialized, so reading in
+ new logfiles would fail
+
+0.3.0, May 15, 2005: 
+ * Many changes, some options also may have changed from 0.1.0
+ * Uses a config file at /etc/blockhosts.cfg
+ * added many more options, and --help
+ * Coding flow modified, catching appropriate exceptions, more careful in
+ * updating hosts.deny
+
+0.1.0, May 8, 2005: initial release

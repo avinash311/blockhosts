@@ -1,0 +1,295 @@
+http://www.aczoom.com/blockhosts
+    blockhosts.py          
+
+REQUIREMENTS:
+------------
+
+    1: Python 2.3 or later, need the optparse module.
+
+    2: Primarily uses host control facility and related files such as
+       hosts.access. If not using TCP/IP blocking, then the extensions to
+       the access control language as described in the man 5 hosts_options
+       page are required, which allow use of :allow and :deny keywords.
+       ["...extensions  are  turned  on  at program build time by
+       building with -DPROCESS_OPTIONS..."]
+
+    3: If not using host control facilities (tcpd, hosts.access, etc),
+       then there needs to be a way to trigger the run of blockhosts.py,
+       or blockhosts.py should be run periodically using cron. Secondly,
+       there must be some way to update a file to list the blocked ip
+       (for example, hosts.deny file, or Apache .htaccess file, etc).
+       Alternately, all TCP/IP communication can be blocked by using those
+       facilities of blockhosts.py
+       
+
+INSTALLATION/UPGRADE
+--------------------
+
+In short:
+        1: save any locally modified configuration file, for example
+           /etc/blockhosts.cfg
+
+        2: run the installer, it will overwrite all old files.
+           Extract source, and run python setup.py install --force
+           OR use rpm command:
+           rpm -Uv BlockHosts-2.6.0-1.noarch.rpm
+           OR the rpm command with an URL:
+           rpm -Uv http://www.aczoom.com/tools/blockhosts/BlockHosts-2.6.0-1.noarch.rpm
+           Other rpm commands:
+           List files in package:
+           rpm -qpl http://www.aczoom.com/tools/blockhosts/BlockHosts-2.6.0-1.noarch.rpm
+           Check if package is installed:
+           rpm -q BlockHosts
+
+           Force install: ignore dependencies check (sometimes incorrect
+           dependencies get in the rpm file):
+           rpm -ivh --nodeps BlockHosts-2.6.0-1.noarch.rpm
+
+        3: configure using /etc/blockhosts.cfg and /etc/hosts.allow, to
+           run blockhosts.py as required at the site
+
+
+----------------------- non-RPM install/upgrade ----------------------
+Extract the source package into a local directory, and then follow the
+upgrade or install instructions below to install the script and config
+file - note that this procedure does not copy over the doc files.
+
+Upgrade:
+---------
+  Note: If you have locally modified the /etc/blockhosts.cfg file,
+  save a copy, before proceeding.
+
+  If you have an older version, but have not modified any blockhosts files
+  locally (such as /etc/blockhosts.cfg), then use this command:
+
+    python setup.py install install --force
+
+  If you have locally modified the /etc/blockhosts.cfg file, save a copy,
+  run the above command, and then merge your changes into the local file.
+  To install without overwriting your local file (this may cause problems
+  if the .cfg file format or data fields have changed), run:
+
+    python setup.py install
+
+Fresh install:
+-------------
+
+    python setup.py install --force
+
+To see what will be installed without actually installing files, run:
+
+    python setup.py --dry-run install --force
+
+
+--------------- RPM package install/upgrade/erase --------------------
+(using example release 2.6.0, change as required):
+
+Install:
+    rpm -iv BlockHosts-2.6.0-1.noarch.rpm
+
+Upgrade:
+    NOTE: save a copy of /etc/blockhosts.cfg if it was modified, and then
+    merge in your changes back after the upgrade.
+
+    rpm -Uv BlockHosts-2.6.0-1.noarch.rpm
+
+Uninstall/Erase:
+    rpm -ev BlockHosts-2.6.0-1
+
+Check what version is installed, and what files:
+    rpm -qv BlockHosts
+    rpm -qlv BlockHosts
+
+For Version 2.6.0, here's what may be installed:
+    /etc/blockhosts.cfg
+    /etc/logrotate.d/blockhosts
+    /etc/logwatch/conf/services/blockhosts.conf
+    /etc/logwatch/scripts/services/blockhosts
+    /usr/bin/blockhosts.py
+    /usr/share/doc/BlockHosts-2.6.0/
+    /usr/share/doc/BlockHosts-2.6.0/CHANGES
+    /usr/share/doc/BlockHosts-2.6.0/INSTALL
+    /usr/share/doc/BlockHosts-2.6.0/README
+    /usr/share/doc/BlockHosts-2.6.0/blockhosts.html
+
+----------------------- First Run ---------------------------------------
+
+After the configuration is as you want it (see next section for
+Configuration), then run this program manually, usually as root:
+    blockhosts.py --verbose
+(use --dry-run if you don't want any output file to be updated).
+
+The first run will scan through the entire system logs, so it will add a
+number of hosts to the block list. 
+
+If you run blockhosts.py immediately again, it will most likely report no
+updates to the blocked hosts list.
+
+The large number of hosts added will be removed after the "discard"
+interval.  By default, this is 12 hours, and from then on,
+blockhosts.py will keep track of the new lines seen in the system logs,
+and will only add new hosts that are attacking sshd/proftpd.
+
+[The reason a large number of hosts are added on the first run is due to
+the way blockhosts.py assigns "time last seen" to each host - to keep
+things simple, blockhosts.py does not look at the system log times, but
+just uses the current date/time when blockhosts.py was run. This is 
+sufficient for the purpose of determining which host to block.]
+
+
+----------------------------- Configuration ---------------------------
+
+/etc/blockhost.cfg:
+  Configuration file should be used, to customize the run of
+  blockhosts.py. The default name of the config file is /etc/blockhosts.cfg
+  Edit this file, and change any parameter as required for your platform. 
+  The defaults work for Fedora FC7 platform, using OpenSSH and ProFTPD.
+  The LOGFILES line is probably the most important one - names of system
+  logs where sshd and proftpd write information may be different on your
+  system from the defaults.
+  The config file can also be used to enable mail notifications, and use
+  ip null routing or iptables blocking.
+
+/etc/hosts.allow (or /etc/hosts.deny) - the hosts block file
+  Add following sections, in this order:
+  -- your permanent whitelist and blacklist of IP addresses (if needed)
+  -- blockhosts marker lines - two lines
+  -- execute command to kick off blockhosts.py on connects to services
+
+Example below, you can copy the following lines in entirety to your
+/etc/hosts.allow, and edit as needed.
+Example applies to either hosts.allow or hosts.deny, best to use a single
+file - hosts.allow, and ignore the other file entirely:
+
+# ----
+# see "man 5 hosts_access" for details of the format of IP addresses,
+#services, allow/deny options. Also see "man hosts_options"
+#order of lines in this file is important, first matched IP address line
+#is rule applied by hosts_access
+#
+# the following lines show how to use hosts.allow syntax to create
+# whitelists and blacklists - this works if invoking blockhosts.py from
+# hosts.allow file. If using cron to run blockhosts, look into
+# using the blockhosts.cfg for specifying whitelists and blacklists.
+
+# permanent whitelist addresses - these should always be ALLOWED access - edit
+# as needed, following is example to show syntax only.
+ALL: 127.0.0.1  : allow
+ALL: 192.168.0. : allow
+# permanent blacklist addresses - these should always be DENIED access - edit
+# as needed, following is example to show syntax only.
+
+ALL: 10.  : deny
+ALL: 192. : deny
+ALL: 172. : deny
+
+# ----------------------------------------
+# next section is the blockhosts section - it will add/delete entries in
+# between the two marker lines (#---- BlockHosts Additions)
+
+#---- BlockHosts Additions
+#---- BlockHosts Additions
+
+# ----------------------------------------
+# finally, the command to execute the blockhosts script, based on
+# connection to particular service or services, for example, for
+# sshd, proftpd, etc - if using pure-ftpd, etc, be sure to use those
+# words instead - this is spread over multiple lines, so has \ at end of
+# line to signal continuation:
+
+sshd, proftpd, vsftpd: ALL: spawn /usr/bin/blockhosts.py \
+     --echo "%c-%s" --ipblock=iptables \
+     --whitelist="10\..*,127.0.0.1" --blacklist="192.168.1.1,192.168.1.2" \
+#---
+# for more help on all the options, run:
+#        blockhosts.py --help
+#---
+# use --ipblock="ip route" to enable null-routing,
+# or use --ipblock=iptables to enable packet filtering,
+# either of which blocks all network communication from blocked hosts
+#---
+# add for  email notification - email sent on newly blocked address,
+# expired blocking, or errors/warnings. Optionally add --verbose for
+# more info.
+# --mail --verbose
+#---
+# add for  extra logging to blockhosts.log, if needed for debugging:
+# --verbose >> /var/log/blockhosts.log 2>&1 &
+# or
+# --debug >> /var/log/blockhosts.log 2>&1 &
+# without this, it will still log to syslog (errors/warnings/notices),
+# so logging to another file is not usually necessary.
+#---
+# above commands will use default config file - /etc/blockhosts.cfg, edit
+# it as needed to specify local configuration options
+
+# See "man hosts.allow" for info on %c and %s identifiers
+
+# for non-verbose, with identification, to syslog only (/var/log/messages),
+# triggered on any service (using ALL as first word):
+#ALL: ALL: spawn /usr/bin/blockhosts.py --echo "%c-%s" & : allow
+#----
+# To test hosts.allow, and to find out exact names of SSH/FTP services,
+# add this line to the beginning of hosts.allow, use ssh/ftp to connect
+# to your server, and then look at the log (/var/log/messages or
+# blockhosts.log) to see the name of the invoked service.
+# IMPORTANT: after your test is done, remove this line from hosts.allow!
+# Otherwise everyone will always have access.
+#ALL : ALL: spawn (/usr/bin/blockhosts.py --verbose --echo "%c-%s" >> /var/log/blockhosts.log 2>&1 )& : allow
+
+# -------------------------------------------------------------------------
+Email Notification Support
+
+Use the --mail to enable email notification support.
+
+The mail notifier can be run to email notice of newly blocked/expired
+addresses, by adding the --mail option to the run of blockhosts.py,
+for example:
+
+sshd: ALL: spawn /usr/bin/blockhosts.py --verbose --mail & : allow
+
+# -------------------------------------------------------------------------
+Logwatch Support
+
+BlockHosts ships with logwatch scripts - this can be used to get
+summary emails of blockhosts.py activity. Since blockhosts.py always
+logs Notices as well as Errors/Warnings to the system log, there is
+no special option needed to blockhosts.py to enable these summaries.
+
+The default install of blockhosts will install the following logwatch
+files:
+    /etc/logwatch/conf/services/blockhosts.conf
+    /etc/logwatch/scripts/services/blockhosts
+Detail level 0 (low) of logwatch will print summaries, and detail level
+medium (5) will print out blocked and unblocked IP addresses also.
+
+# -------------------------------------------------------------------------
+Null Routing and Packet Filtering Blocking
+
+Use the --ipblock="ip route" or --ipblock=iptables options to enable
+null routing or packet filtering blocking.
+
+Example:
+sshd: ALL: spawn /usr/bin/blockhosts.py --echo "%c-%s" --ipblock="ip route" & : allow
+
+Root permission for the run of blockhosts.py script is needed, since
+only root can change routing tables or install iptables rules. This works
+properly with correct permissions, if using hosts.access/hosts.deny to
+run this script.
+# -------------------------------------------------------------------------
+
+If you are using extra logging, and following above examples using the
+file name /var/log/blockhosts.log, then it is probably useful to use some
+sort of logrotation, so the log file does not get too large.
+
+An example configuration for logrotate.d is provided, and the RPM package
+installs it in the /etc/logrotate.d folder, manual install process is:
+   cp   logrotate   /etc/logrotate.d/blockhosts
+
+Note that it is not necessary to use the extra logging, and
+blockhosts.log is not necessary - there will be some logging done using
+syslog (usually goes to /var/log/messages), which is usually sufficient for
+a working system. In which case, there is no need to do any logging to
+blockhosts.log.
+
+# -------------------------------------------------------------------------

@@ -1,0 +1,24 @@
+# permanent whitelist addresses - this should always be allowed access
+ALL: 127.0.0.1 : allow
+
+# permanent blacklist addresses - this should always be denied access
+ALL: 192.168. : deny
+
+# ----------------------------------------
+# next section is the blockhosts section - it will add/delete entries in
+# between the two marker lines (#---- BlockHosts Additions)
+
+#---- BlockHosts Additions
+ALL: [2002:3c48:4202:affe:3::3c4] : deny
+
+#---- BlockHosts Additions
+
+# ----------------------------------------
+# finally, the command to execute the blockhosts script, based on
+# connection to particular service or services:
+
+sshd, proftpd, vsftpd: ALL: spawn /usr/bin/blockhosts.py --verbose \
+    --logfiles="/var/log/secure,/var/log/vsftpd.log" --iptables \
+    --echo "%c-%s" --mail --check-ip "%h" >> /var/log/blockhosts.log 2>&1 & \
+: allow
+# -------------------------------------------------------------------------
