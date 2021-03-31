@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# vim: set fileencoding=latin-1 :
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 #blockhosts.py
 
 """Automatic updates to hosts.allow to block IP addresses based on failed
@@ -95,7 +95,7 @@ detailed example of the hosts.allow file.
 
 ====
 Requirements:
-    1: Python 2.3 or later, need the optparse module.
+    1: Python 3
 
     2: Primarily uses host control facility and related files such as
        hosts.access. If not using TCP/IP blocking, then the extensions to
@@ -161,14 +161,10 @@ import traceback
 import time
 import errno
 import fcntl
-import ConfigParser
+import configparser
 import syslog
 import re
-try:
-    from optparse import OptionParser, OptionGroup, BadOptionError
-except ImportError, e:
-    print "Missing module: optparse\nWill not work with earlier python versions - 2.3 or later needed.\n", e
-    raise
+from optparse import OptionParser, OptionGroup, BadOptionError
 
 # -------------------------------------------------------------
 # This script was inspired by: DenyHosts, which has been developed
@@ -184,7 +180,7 @@ def die(msg, *args):
     """Exit, serious error occurred"""
     # function not used
 
-    string = "FATAL ERROR: " + " ".join([str(msg)] + map(str, args))
+    string = "FATAL ERROR: " + " ".join([str(msg)] + list(map(str, args)))
     # print >> sys.stderr, string # sys.exit prints message
     syslog.syslog(syslog.LOG_ERR, string)
     sys.exit(string)
@@ -213,23 +209,23 @@ class Log:
 
     def SetPrintLevel(cls, level):
         """Set message level to determine die, error, info, debug print outs.
-        
+
         verbosity_level is the value assigned to options.verbose by the
         OptionParser
         """
         if cls.MESSAGE_LEVEL_ERROR <= level <= cls.MESSAGE_LEVEL_DEBUG:
-            cls.MESSAGE_LEVEL = level 
+            cls.MESSAGE_LEVEL = level
         else:
-            raise IndexError, "Invalid Log message level: %s" % str(level)
+            raise IndexError("Invalid Log message level: %s" % str(level))
 
     SetPrintLevel = classmethod(SetPrintLevel)
 
     def PrintLevel(cls, level, msg, *args):
         """Print message to stderr, but only if level is >= MESSAGE_LEVEL"""
 
-        string = " ".join([str(msg)] + map(str, args))
+        string = " ".join([str(msg)] + list(map(str, args)))
         if cls.MESSAGE_LEVEL >= level:
-            print >> sys.stderr, string
+            print(string, file=sys.stderr)
             # store messages, may be used to send in email notifications
             cls.MESSAGE_ARCHIVE.append(string)
             # keep archive from becoming too large
@@ -332,7 +328,7 @@ class Config(object):
     # Python strptime problem. On some systems, fails to read time written
     # by strftime, get this error:
     # ValueError: time data '2011-06-16 10:46:10 WEST' does not match format '%Y-%m-%d %H:%M:%S %Z'
-    # Code changed to not rely on Python time.strptime anymore, uses epoch UTC 
+    # Code changed to not rely on Python time.strptime anymore, uses epoch UTC
     # number of seconds now. The orignal reason for using strftime was to show
     # human readable date/time in hosts.allow. That is still done, but in
     # hosts.allow comments only.
@@ -430,6 +426,9 @@ class Config(object):
             (self._options, rest_args) = self._oparser.parse_args(carg)
             self._config["CONFIGFILE"] = self._options.configfile
 
+        # Loads the file data here.
+        self._filedata = None
+
         # print "debug: Config filename: ", self["configfile"]
 
     def __str__(self):
@@ -440,13 +439,16 @@ class Config(object):
         self._config.update(section.HC_OPTIONS)
 
         # load up the config from the specified config file
-        self._load_configfile(section.NAME)
+        self._load_config_section(section.NAME)
 
         section.setup_options(self._oparser, self._config)
 
     def parse_args(self):
         (self._options, rest_args) = self._oparser.parse_args(self._args)
         return rest_args
+
+    def print_help(self):
+        self._oparser.print_help()
 
     def get(self, option):
         """Find value assigned to option in command-line, configfile, or
@@ -469,32 +471,39 @@ class Config(object):
         return self.get(option)
 
     # --------------------------------
-    def _load_configfile(self, section):
-        """Read in the configuration file, given section."""
+    def load_file(self):
+        """Read in the configuration file."""
 
-        filedata = ConfigParser.SafeConfigParser()
-        filedata.optionxform = str # leaves tags same case - upper/lower
+        self._filedata = configparser.ConfigParser()
+        self._filedata.optionxform = str # leaves tags same case - upper/lower
 
         configfile = self._config["CONFIGFILE"]
 
         try:
             fp = open(configfile, "r") # for error report - check existence
-            filedata.read(configfile)
+            self._filedata.read(configfile)
         except:
-            Log.Error("Config file '%s' missig/invalid? Cannot continue." % configfile)
+            Log.Error("Config file '%s' missing/invalid? Cannot run." % configfile)
+            self.print_help()
             raise
         else:
             fp.close()
 
-        #debug print " loading config %s section %s" % (configfile, section)
+    # --------------------------------
+    def _load_config_section(self, section):
+        """Read in the configuration file, given section."""
 
+        configfile = self._config["CONFIGFILE"]
+
+        allitems = {}
         try:
-            allitems = dict(filedata.items(section))
-        except ConfigParser.NoSectionError:
+            allitems = dict(self._filedata.items(section))
+        except configparser.NoSectionError:
             Log.Error("Config file '%s' missing required section '%s'" % (configfile, section))
+            self.print_help()
             raise
 
-        keys = allitems.keys()
+        keys = list(allitems.keys())
         for key in keys:
             if key in self._config:
                 try:
@@ -710,7 +719,7 @@ def do_mail(config, blocked_ips, watched_hosts):
         mailer = MailMessage(config, subject, lines)
         try:
             mailer.send_mail(config["dry_run"])
-        except smtplib.SMTPException, e:
+        except smtplib.SMTPException as e:
             Log.Error(e)
     else:
         Log.Info(" ... no email to send.")
@@ -718,7 +727,7 @@ def do_mail(config, blocked_ips, watched_hosts):
 # --------------------------------
 class MailMessage:
     """Compose an email message, and then send it
-    
+
     Constructor takes an dict with all mail header info, as well as a
     string specifying subject, and an array of strings specifying body of
     message
@@ -751,14 +760,16 @@ class MailMessage:
         message += "\nSubject: " + self.__subject + "\n\n"
         message += "\n".join(self.__lines)
         if dry_run:
-            print "\n-----", SCRIPT_ID, ": dry-run, email message-------\n"
-            print message
-            print "-----"
+            print("\n-----", SCRIPT_ID, ": dry-run, email message-------\n")
+            print(message)
+            print("-----")
             return
 
         try:
             session = smtplib.SMTP(self.__smtp_server)
-        except socket.error, (value,message): 
+        except socket.error as e:
+            errno = e.args[0]
+            message = e.args[1]
             Log.Error("Mail: Could not open SMTP connection to '%s', error '%s'." % (self.__smtp_server, message))
             return
 
@@ -769,11 +780,11 @@ class MailMessage:
         smtpresult = session.sendmail(self.__sender_address, self.__address, message)
         if smtpresult:
             errstr = ""
-            for recip in smtpresult.keys():
+            for recip in list(smtpresult.keys()):
                 errstr = """Unable to deliver mail to: %s Server responded: %s %s %s"""\
                          % (recip, smtpresult[recip][0], smtpresult[recip][1], errstr)
-                raise smtplib.SMTPException, errstr
-        
+                raise smtplib.SMTPException(errstr)
+
 # ======================= TCP/IP BLOCKING SECTION ========================
 class IPBlockConfig(ConfigSection):
     """Manage setup related to using ip/iptables commands to block IP addresses
@@ -836,13 +847,13 @@ def _do_cmd(cmd, dry_run, expect=None):
     Prints error if expect code is not same as waitstatus
     """
 
-    import commands
+    import subprocess
 
     Log.Debug("Running: ", cmd)
     if dry_run:
         return (0, '')
 
-    (waitstatus, output) = commands.getstatusoutput(cmd)
+    (waitstatus, output) = subprocess.getstatusoutput(cmd)
     Log.Debug("   returned waitstatus: ", waitstatus)
     if output.strip():
         Log.Debug("   output: ", output)
@@ -877,7 +888,7 @@ def _do_iptables(path, dry_run, blocked_ips):
     # Note: use iptables or ip6tables as needed above.
 
     if dry_run:
-        print "Commands (tentative) to run for IPTables filtering:"
+        print("Commands (tentative) to run for IPTables filtering:")
 
     # check that user-defined chain exists
     # iptables --new blockhosts [ok to run multiple times]
@@ -966,7 +977,7 @@ def _do_iproute(path, dry_run, blocked_ips):
     # http://www.tummy.com/journals/entries/jafo_20060727_140652
 
     if dry_run:
-        print "Commands (tentative) to run for ip null-route blocking:"
+        print("Commands (tentative) to run for ip null-route blocking:")
 
     # get current list of blackhole'd hosts, and do two things:
     # 1 -> delete route for host, if not on blocked_ips
@@ -1014,7 +1025,7 @@ def _do_iproute(path, dry_run, blocked_ips):
 # ======================= HELPER CLASSES ========================
 def sort_by_value(d, reverse = False):
     """ Returns the keys of dictionary d sorted by their values """
-    items=d.items()
+    items=list(d.items())
     backitems=[ [v[1],v[0]] for v in items]
     backitems.sort()
     if reverse:
@@ -1094,7 +1105,7 @@ class BlockHostsConfig(ConfigSection):
         "LOCKFILE": "/tmp/blockhosts.lock",
             # need create/write access to this file, used to make sure
             # only one instance of blockhosts.py script writes the
-            # HOSTS_BLOCKFILE at one time 
+            # HOSTS_BLOCKFILE at one time
             # note that the mail/iptables/iproute parts of the program
             # do not serialize
 
@@ -1135,7 +1146,7 @@ class BlockHostsConfig(ConfigSection):
         r'( \[ID [^[:\]]+])?' # optional [ID msgid facility.priority]
         r')|(' # ---- multilog format follows
         r'@[\d\w]+'
-        # ---- 
+        # ----
         r'))'
         )
 
@@ -1227,7 +1238,7 @@ class LockFile:
         try:
             # use mode a+ to prevent trashing the file
             self._fp = open(self._path, "a+")
-        except IOError, e :
+        except IOError as e :
             if e.errno == errno.ENOENT: # no such file
                 # "w+" will trash existing file, or create new one
                 self._fp = open(self._path, "w+")
@@ -1237,7 +1248,7 @@ class LockFile:
 
         try:
             rv = fcntl.lockf(self._fp.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError, e :
+        except IOError as e :
             if e.errno == errno.EAGAIN:
                 Log.Debug("File '%s' already locked, EAGAIN." % self._path)
             elif e.errno == errno.EACCES:
@@ -1257,7 +1268,7 @@ class LockFile:
         try:
             rv = fcntl.lockf(self._fp.fileno(), fcntl.LOCK_UN)
             self._fp.close()
-        except IOError, e:
+        except IOError as e:
             Log.Debug("  debug warning: LockFile: failed to unlock or close file ", self._path, e)
         else:
             self._fp = None
@@ -1275,16 +1286,16 @@ class SystemLogOffset:
     Uses a offset, along with the entire first line of the file at the
     time, to allow detection of log rotation
     """
-    def __init__(self, offset=0L, first_line=""):
-        self.offset = long(offset)
+    def __init__(self, offset=0, first_line=""):
+        self.offset = int(offset)
         self.first_line = first_line
 
     def load_string(self, line):
         if line.startswith(Config.HOSTS_MARKER_OFFSET):
             value = line[ len(Config.HOSTS_MARKER_OFFSET) : ]
             try:
-                self.offset = long(value.strip())
-            except ValueError, e:
+                self.offset = int(value.strip())
+            except ValueError as e:
                 Log.Warning("could not decode offset, using 0:", e)
                 self._last_offset = 0
                 return False
@@ -1328,7 +1339,7 @@ class SystemLog:
 
         if self._offset.first_line.strip() != offset.first_line.strip():
             # log file was rotated, start from beginning
-            self._offset.offset = 0L
+            self._offset.offset = 0
             Log.Debug("   log file new, or rotated, ignore old offset, start at 0")
             Log.Debug("   needed first_line:", repr(offset.first_line))
         elif self._offset.offset > offset.offset:
@@ -1348,7 +1359,7 @@ class SystemLog:
     def close(self):
         try:
             return self._fp.close()
-        except IOError, e:
+        except IOError as e:
             Log.Warning("could not close logfile ", self._logfile, e)
 
         return None
@@ -1357,7 +1368,7 @@ class SystemLog:
         try:
             line = self._fp.readline()
             self._offset.offset = self._fp.tell()
-        except IOError, e:
+        except IOError as e:
             line = None
             Log.Warning("readline: could not read logfile", self._logfile, e)
 
@@ -1372,7 +1383,7 @@ class BlockHosts:
     def __init__(self, blockfile, blockline_ipv4, blockline_ipv6):
         self._watched_hosts = {} # hosts -> HostData [count, last seen]
         self._blocked_ips = [] # ip addressess blocked
-        self._offset_first_marker = -1L
+        self._offset_first_marker = -1
         self._remaining_lines = [] # all lines after the 2nd end marker
         self._blockfile = blockfile
         self._blockline_ipv4 = blockline_ipv4
@@ -1428,7 +1439,7 @@ class BlockHosts:
 
             fp.close()
 
-        except IOError, e:
+        except IOError as e:
             Log.Error("could not read block-file, last state: ", state)
             state = 0
             raise
@@ -1479,7 +1490,7 @@ class BlockHosts:
                 if not name: return state # all done reading watched IPs
 
                 name = name.strip()
-                if not Config.HOST_IP_REOBJ.match(name): 
+                if not Config.HOST_IP_REOBJ.match(name):
                     Log.Error("ignoring watched IP line, invalid IP '%s'" % (name))
                     continue
 
@@ -1493,7 +1504,7 @@ class BlockHosts:
                     datestr = datestr.strip()
                     try:
                         self._watched_hosts[name].count = int(value)
-                    except ValueError, e:
+                    except ValueError as e:
                         Log.Error("failed to parse count for ip %s, using 1:\n  " % (name), e)
 
                     try:
@@ -1508,7 +1519,7 @@ class BlockHosts:
                             # breaking, fails to read %Z written by strftime,
                             # so don't depend on strptime at all.
                             self._watched_hosts[name].time = float(datestr)
-                    except ValueError, e:
+                    except ValueError as e:
                         # strange: could not read date that blockhosts.py wrote?
                         # either file was manually edited, or time.strptime
                         # cannot read what time.strftime wrote out to blockfile.
@@ -1555,7 +1566,7 @@ class BlockHosts:
         self._blocked_ips = []
         for filter in filters:
             Log.Debug("calling hosts filter ", filter)
-            filter(config, self._blocked_ips, self._watched_hosts)
+            list(filter(config, self._blocked_ips, self._watched_hosts))
 
         return(self._blocked_ips, self._watched_hosts)
 
@@ -1594,7 +1605,7 @@ class BlockHosts:
 
         # log file offset recording for next time around
         Log.Debug("Collecting log file offset info for block-file")
-        files = logoffsets.keys()
+        files = list(logoffsets.keys())
         for name in files:
             lines.append("%s %s\n" % (Config.HOSTS_MARKER_LOGFILE, name))
             lines.append(logoffsets[name].dump_string())
@@ -1607,7 +1618,7 @@ class BlockHosts:
             sys.stdout.writelines(lines)
             return True
 
-        # update blockfile with blocked/watched hosts 
+        # update blockfile with blocked/watched hosts
         # open file in read/write mode
         try:
             fp = open(self._blockfile, "r+")
@@ -1630,7 +1641,7 @@ class BlockHosts:
 
             finally:
                 fp.close()
-        except IOError, e:
+        except IOError as e:
             traceback.print_exc()
             Log.Error("Could not update blockfile ", self._blockfile)
 
@@ -1643,7 +1654,7 @@ class BlockHosts:
 
         enable_reobj = re.compile(enable_rules)
         Log.Debug("   ... enabled (+) and disabled (-) patterns:   ")
-        for (name, regex) in all_regexs.iteritems():
+        for (name, regex) in all_regexs.items():
             # compile all regular expression patterns
             if enable_reobj.match(name):
                 expanded = BlockHostsConfig.expand_regex_keywords(regex)
@@ -1655,9 +1666,9 @@ class BlockHosts:
         # if trying to ignore duplicate log messages for same attempt,
         # keep a dict of pattern names in a dict of IP-PIDs
         if ignore_duplicates:
-            self._ip_pid = {} 
+            self._ip_pid = {}
         else:
-            self._ip_pid = None 
+            self._ip_pid = None
 
 
     # --------------------------------
@@ -1714,7 +1725,7 @@ class BlockHosts:
         """Check if the log line matches, & update the BlockHosts IP count"""
 
         matched = False
-        for (name, reobj) in self._all_reobjs.iteritems():
+        for (name, reobj) in self._all_reobjs.items():
             m = reobj.search(line)
             if m:
                 try:
@@ -1745,7 +1756,7 @@ class BlockHosts:
     # --------------------------------
     def get_hosts_lists(self):
         """Return list of blocked hosts, and a dict of watched hosts.
-        
+
         First list is of all IP addresses being blocked, and second dict
         has IP as the key and HostData as value which contains count
         and last seen.
@@ -1757,7 +1768,7 @@ class BlockHosts:
     def _make_blockline(self, host):
         """For the given host, return the appropriate IPv4 or IPv6 blockline """
 
-        if Config.HOST_IPv4_REOBJ.match(host): 
+        if Config.HOST_IPv4_REOBJ.match(host):
             line = self._blockline_ipv4[0] + host + self._blockline_ipv4[1]
         else:
             line = self._blockline_ipv6[0] + host + self._blockline_ipv6[1]
@@ -1871,7 +1882,7 @@ class HostsFilters:
                 # a watched host, immediately add it to the blocked list
                 try:
                     test = re.compile("^" + ip + "$")
-                except re.error, e:
+                except re.error as e:
                     Log.Error("blacklist option: regexp '%s' failed to compile: " % (ip), e)
                     raise
 
@@ -1883,7 +1894,7 @@ class HostsFilters:
     add_blocked_blacklist = classmethod(add_blocked_blacklist)
 
     # remove_watched_whitelist
-    # check if any of the watched addresses should be removed 
+    # check if any of the watched addresses should be removed
     # another option is to apply whitelist on blocked list - that
     # way it can be applied before or after the blacklist filter
     def remove_watched_whitelist(cls, config, blocked_ips, watched_hosts):
@@ -1894,11 +1905,11 @@ class HostsFilters:
         for ip in whitelist:
             try:
                 test = re.compile("^" + ip + "$")
-            except re.error, e:
+            except re.error as e:
                 Log.Error("whitelist option: regexp '%s' failed to compile: " % (ip), e)
                 raise
 
-            for watched in watched_hosts.keys():
+            for watched in list(watched_hosts.keys()):
                 if test.match(watched):
                     count = watched_hosts[watched].count
                     del watched_hosts[watched]
@@ -1907,7 +1918,7 @@ class HostsFilters:
     remove_watched_whitelist = classmethod(remove_watched_whitelist)
 
     # remove_blocked_whitelist
-    # check if any of the blocked addresses should be removed 
+    # check if any of the blocked addresses should be removed
     # another option is to apply whitelist on watched list - that
     # way IP can be removed from watch list and not be continually
     # re-added to blocked list when count is exceeded
@@ -1919,7 +1930,7 @@ class HostsFilters:
         for ip in whitelist:
             try:
                 test = re.compile("^" + ip + "$")
-            except re.error, e:
+            except re.error as e:
                 Log.Error("whitelist option: regexp '%s' failed to compile: " % (ip), e)
                 raise
 
@@ -2015,6 +2026,8 @@ def main(args=None):
 
     config = Config(args, VERSION, LONG_DESCRIPTION)
 
+    # Load file and all default values for all args.
+    config.load_file()
     config.add_section(CommonConfig())
     config.add_section(BlockHostsConfig())
     config.add_section(HostsFiltersConfig())
@@ -2040,7 +2053,7 @@ def main(args=None):
     if rest_args:
         Log.Warning("ignoring positional arguments - there should be none!", rest_args)
 
-    load_only = config["load_only"] 
+    load_only = config["load_only"]
     dry_run = config["dry_run"]
 
     if (load_only or dry_run):
@@ -2051,7 +2064,7 @@ def main(args=None):
         lock = LockFile(config["lockfile"])
         try:
             lock.lock()
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.EAGAIN:
                 msg = "Exiting: another instance running? '%s' already locked" % lock.get_path()
                 Log.Info(msg)
@@ -2080,7 +2093,7 @@ def main(args=None):
 
     # --------------------------------
     # scan logfiles for IP hosts illegally accessing services, update
-    # host IP access failure counters 
+    # host IP access failure counters
 
     if load_only:
         logfiles = ""

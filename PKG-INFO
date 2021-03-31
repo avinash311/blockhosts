@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: BlockHosts
-Version: 2.7.0
+Version: 2.7.1
 Summary: Block IP Addresses based on system logs showing patterns of undesirable accesses.
 Home-page: http://www.aczoom.com/blockhosts/
 Author: Avinash Chopde

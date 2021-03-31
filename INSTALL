@@ -4,7 +4,8 @@ http://www.aczoom.com/blockhosts
 REQUIREMENTS:
 ------------
 
-    1: Python 2.3 or later, need the optparse module.
+    1: BlockHosts 2.7.1+ Python 3
+       BlockHosts 2.7.0- Python 2.3
 
     2: Primarily uses host control facility and related files such as
        hosts.access. If not using TCP/IP blocking, then the extensions to
@@ -30,7 +31,11 @@ In short:
            /etc/blockhosts.cfg
 
         2: run the installer, it will overwrite all old files.
-           Extract source, and run python setup.py install --force
+           Extract source, and run:
+           python3 setup.py install --force
+           May need:
+           sudo python3 setup.py install --force
+           Older versions:
            OR use rpm command:
            rpm -Uv BlockHosts-2.6.0-1.noarch.rpm
            OR the rpm command with an URL:
@@ -62,24 +67,25 @@ Upgrade:
   If you have an older version, but have not modified any blockhosts files
   locally (such as /etc/blockhosts.cfg), then use this command:
 
-    python setup.py install install --force
+    python3 setup.py install install --force
 
   If you have locally modified the /etc/blockhosts.cfg file, save a copy,
   run the above command, and then merge your changes into the local file.
   To install without overwriting your local file (this may cause problems
   if the .cfg file format or data fields have changed), run:
 
-    python setup.py install
+    python3 setup.py install
 
 Fresh install:
 -------------
 
-    python setup.py install --force
+    python3 setup.py install --force
 
 To see what will be installed without actually installing files, run:
 
-    python setup.py --dry-run install --force
+    python3 setup.py --dry-run install --force
 
+May need sudo to copy files in correct places.
 
 --------------- RPM package install/upgrade/erase --------------------
 (using example release 2.6.0, change as required):

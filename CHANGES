@@ -1,3 +1,9 @@
+2.7.1  March 31, 2021:
+
+ * Minor changes to try to make it run with python3.
+   Ran 2to3 on blockhost.py, with minor cleanup.
+   Package may not work - just that it should not error with python3 anymore.
+
 2.7.0  September 23, 2012:
 
  * Now with IPV6 support. This is preliminary, not fully tested yet.

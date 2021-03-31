@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------
 [For Unix platforms]
 
+[2012 Package. May not work anymore!]
+
 Block IP Addresses based on login or access information in system logs.
 
 Updates a hosts blockfile (such as hosts.allow) automatically,
