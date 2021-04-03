@@ -126,7 +126,7 @@ http://www.aczoom.com/blockhosts/
 
 # script metadata, also used by setup.py
 SCRIPT_ID="blockhosts"
-VERSION="2.7.1"
+VERSION="3.0.0"
 VERSION_DATE="March 2021"
 AUTHOR="Avinash Chopde"
 AUTHOR_EMAIL="avinash@aczoom.com"
@@ -1023,15 +1023,9 @@ def _do_iproute(path, dry_run, blocked_ips):
 
 # ======================= HELPER CLASSES ========================
 def sort_by_value(d, reverse = False):
-    """ Returns the keys of dictionary d sorted by their values """
-    items=list(d.items())
-    backitems=[ [v[1],v[0]] for v in items]
-    backitems.sort()
-    if reverse:
-        backitems.reverse()
-    return [ backitems[i][1] for i in range(0,len(backitems))]
-    # return sorted(d.iteritems(), key=lambda (k,v): (v,k), reverse) # Python 2.5+ only
-    # L.sort(key=lambda x: x.lower())
+    """ Returns the dictionary d sorted by its values."""
+    backitems = sorted(d.items(), key=lambda kv: kv[1], reverse = reverse)
+    return dict(backitems)
 
 import socket
 
@@ -1060,8 +1054,8 @@ class HostData:
     def __repr__(self):
         return "HostData(" + repr(self.count) + ", " + repr(self.time)  + ")"
 
-    def __cmp__(self, other):
-        return cmp(self.time, other.time)
+    def __lt__(self, other):
+        return self.time < other.time
 
 # ======================= EXCEPTIONS ========================
 class Error(Exception):
@@ -1136,15 +1130,20 @@ class BlockHostsConfig(ConfigSection):
     SERVICE_NAME_KEY = r'{SERVICE_NAME}'
     LOG_PREFIX_KEY_RE = r'{LOG_PREFIX{(?P<service>[^{}]*)}}'
     LOG_PREFIX_KEY_REOBJ = re.compile(LOG_PREFIX_KEY_RE)
+    # LOG_PREFIX_RE is used as replacement string for {LOG_PREFIX}
+    # All backslashes must be valid escapes, but since this is a replacement
+    # string, there are no valid escapes. \w \d chars must be \\w and \\d here,
+    # and looks like it is fine to have \[ instead of \\[ etc.
+    # Python3.7+ will error out otherwise.
     LOG_PREFIX_RE = (
         r'^((' # ---- syslog or metalog format follows
-        r'\w\w\w .?\d \d\d:\d\d:\d\d ' # time stamp Mmm dd hh:mm:ss
+        r'\\w\\w\\w .?\\d \\d\\d:\\d\\d:\\d\\d ' # time stamp Mmm dd hh:mm:ss
         r'(([^[:\]]+ )|(\[))' # host name (syslogd) or [ (metalog)
         ) + SERVICE_NAME_KEY + ( # service name (syslog and metalog)
-        r'((\[(?P<pid>\d+)]:?)|(])|:)' # [pid]:? or (syslogd) or ] (metalog)
+        r'((\[(?P<pid>\\d+)]:?)|(])|:)' # [pid]:? or (syslogd) or ] (metalog)
         r'( \[ID [^[:\]]+])?' # optional [ID msgid facility.priority]
         r')|(' # ---- multilog format follows
-        r'@[\d\w]+'
+        r'@[\\d\\w]+'
         # ----
         r'))'
         )
@@ -1563,9 +1562,9 @@ class BlockHosts:
     def update_hosts_lists(self, config, filters):
         """Update blocked and watched list by calling the list of plugins"""
         self._blocked_ips = []
-        for filter in filters:
-            Log.Debug("calling hosts filter ", filter)
-            list(filter(config, self._blocked_ips, self._watched_hosts))
+        for func in filters:
+            Log.Debug("calling hosts filter function:", func)
+            func(config, self._blocked_ips, self._watched_hosts)
 
         return(self._blocked_ips, self._watched_hosts)
 
@@ -2077,14 +2076,15 @@ def main(args=None):
     # --------------------------------
     # load block file data with current list of blocked and watched hosts
 
-    dh = BlockHosts(config["blockfile"], config["blockline_ipv4"], config["blockline_ipv6"])
+    blockfile = config["blockfile"]
+    dh = BlockHosts(blockfile, config["blockline_ipv4"], config["blockline_ipv6"])
     prev_logoffsets = {}
     new_logoffsets = {}
 
     try:
         dh.load_hosts_blockfile(prev_logoffsets)
     except (MissingMarkerError, SecondMarkerError):
-        Log.Error("Failed to load blockfile - block-file marker error\n Expected two marker lines in the file, somewhere in the middle of the file:\n%s\n%s\n" % (Config.HOSTS_MARKER_LINE, Config.HOSTS_MARKER_LINE))
+        Log.Error("Failed to load blockfile %s - block-file marker error\n Expected two marker lines in the file, somewhere in the middle of the file:\n%s\n%s\n" % (blockfile, Config.HOSTS_MARKER_LINE, Config.HOSTS_MARKER_LINE))
         raise
     except:
         Log.Error("Failed to load blockfile, unexpected error")

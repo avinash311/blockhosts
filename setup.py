@@ -5,6 +5,11 @@ from blockhosts import VERSION, DESCRIPTION, LONG_DESCRIPTION, AUTHOR, AUTHOR_EM
 # installs blockhosts.py in /bin or /usr/bin
 # installs blockhosts.cfg usually in /etc (CONFIG_FILE)
 # installs logrotate.d/blockhosts in /etc/logrotate.d
+# Install
+# [sudo] python3 setup.py install
+# Create source dist:
+# python3 setup.py sdist --formats=gztar,zip
+# python3 setup.py bdist_rpm
 
 LOGROTATE_DIR = '/etc/logrotate.d'
 LOGWATCH_SCRIPTS_DIR = '/etc/logwatch/scripts/services'
@@ -20,6 +25,8 @@ if isdir(LOGWATCH_SCRIPTS_DIR) and isdir(LOGWATCH_CONF_DIR):
     DATA_FILES.append((LOGWATCH_CONF_DIR, ['logwatch/blockhosts.conf']),)
     
 setup(name="BlockHosts",
+      # Maybe need python 3.6 or later?
+      # python_requires='>=3',
       version=VERSION,
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,

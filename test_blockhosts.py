@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# test_blockhosts.py
+#!/usr/bin/env python3
+# Run like this: python3 -m unittest test_blockhosts
 
 '''
 Unit tests for blockhosts.py
@@ -7,7 +7,7 @@ Unit tests for blockhosts.py
 Run from current directory, should have blockhosts.py and
 blockhosts.cfg files and the test_data/ directory available.
 Command:
-   python blockhosts_tests.py
+   python3 blockhosts_tests.py
 
 '''
 
@@ -29,7 +29,7 @@ LONG_DESCRIPTION=DESCRIPTION
 
 
 import unittest
-import StringIO
+import io
 import sys
 import re
 import traceback
@@ -47,8 +47,8 @@ class TestBlockHosts(unittest.TestCase):
 
     def setUp(self):
 
-        #Log.SetPrintLevel(Log.MESSAGE_LEVEL_DEBUG)
-        Log.SetPrintLevel(Log.MESSAGE_LEVEL_INFO)
+        Log.SetPrintLevel(Log.MESSAGE_LEVEL_DEBUG)
+        #Log.SetPrintLevel(Log.MESSAGE_LEVEL_INFO)
         #Log.SetPrintLevel(0) # disable all non-error messages
 
         # reset log archive to empty before each test
@@ -60,6 +60,8 @@ class TestBlockHosts(unittest.TestCase):
         args = ['--quiet', '--configfile=' + TEST_CONFIG_FILE]
 
         config = blockhosts.Config(args, VERSION, LONG_DESCRIPTION)
+        # Load file and all default values for all args.
+        config.load_file()
         config.add_section(blockhosts.CommonConfig())
         config.add_section(blockhosts.BlockHostsConfig())
         config.add_section(blockhosts.HostsFiltersConfig())
@@ -141,7 +143,7 @@ class TestBlockHosts(unittest.TestCase):
         sl.close()
 
         (blocked, watched) = self.BH_OBJ.get_hosts_lists()
-        watched_ips = watched.keys()
+        watched_ips = list(watched.keys())
         for ip in table:
             if ip not in watched_ips:
                 # check that no required IP address is missing
@@ -149,7 +151,7 @@ class TestBlockHosts(unittest.TestCase):
             else:
                 # check that counts are correct
                 count = watched[ip].count
-                if ignore_duplicates and ip in duplicates.keys():
+                if ignore_duplicates and ip in list(duplicates.keys()):
                     needed = duplicates[ip]
                 else:
                     if ':' in ip:
@@ -160,10 +162,10 @@ class TestBlockHosts(unittest.TestCase):
                 if count != needed:
                     failed.append('** Watched IP %s count %d not %d' % (ip, count, needed))
 
-        self.failIf(failed, 'Scanning failed, Errors:\n%s' % ('\n'.join(failed)))
+        self.assertFalse(failed, 'Scanning failed, Errors:\n%s' % ('\n'.join(failed)))
 
     def _run_main(self, args):
-        output = StringIO.StringIO()
+        output = io.StringIO()
         save_stdout = sys.stdout
         save_stderr = sys.stderr
         sys.stdout = output
@@ -172,7 +174,7 @@ class TestBlockHosts(unittest.TestCase):
         etype = None
         try:
             blockhosts.main(args)
-        except Exception, e:
+        except Exception as e:
             etype, evalue, etraceback = sys.exc_info()
             pass
 
@@ -183,8 +185,8 @@ class TestBlockHosts(unittest.TestCase):
         # print 'got stdout and stderr', output.getvalue()
 
         if etype:
-            print "got exception "
-            print traceback.print_exception(etype, evalue, etraceback)
+            print("got exception ")
+            print(traceback.print_exception(etype, evalue, etraceback))
 
         return value
 
@@ -201,7 +203,7 @@ class TestBlockHosts(unittest.TestCase):
         value = self._run_main(args)
 
         # print 'got stdout and stderr', output.getvalue()
-        self.failIf(TestBlockHosts.ERRORS_RE.search(value), 
+        self.assertFalse(TestBlockHosts.ERRORS_RE.search(value), 
                     'main() output contains ERROR or WARNING:\n%s' % value)
 
 
@@ -229,12 +231,12 @@ class TestBlockHosts(unittest.TestCase):
             ]
 
         for str in lookfor:
-            self.failUnless(value.find(str) >= 0,
+            self.assertTrue(value.find(str) >= 0,
                             'main() output does not contain (%s) \n%s' %
                             (str, value))
 
         # print 'got stdout and stderr', output.getvalue()
-        self.failIf(TestBlockHosts.ERRORS_RE.search(value), 
+        self.assertFalse(TestBlockHosts.ERRORS_RE.search(value), 
                     'main() output contains ERROR or WARNING:\n%s' % value)
 
 
@@ -258,7 +260,7 @@ class TestBlockHosts(unittest.TestCase):
             value = self._run_main(args)
 
             # print 'got stdout and stderr', output.getvalue()
-            self.failIf(TestBlockHosts.ERRORS_RE.search(value), 
+            self.assertFalse(TestBlockHosts.ERRORS_RE.search(value), 
                         'main() output contains ERROR or WARNING:\n%s' % value)
 
             args.remove(ipblock)
