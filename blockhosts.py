@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #blockhosts.py
 
 """Automatic updates to hosts.allow to block IP addresses based on failed
@@ -127,8 +126,8 @@ http://www.aczoom.com/blockhosts/
 
 # script metadata, also used by setup.py
 SCRIPT_ID="blockhosts"
-VERSION="2.7.0"
-VERSION_DATE="September 2012"
+VERSION="2.7.1"
+VERSION_DATE="March 2021"
 AUTHOR="Avinash Chopde"
 AUTHOR_EMAIL="avinash@aczoom.com"
 URL="http://www.aczoom.com/blockhosts/"
@@ -170,7 +169,7 @@ from optparse import OptionParser, OptionGroup, BadOptionError
 # This script was inspired by: DenyHosts, which has been developed
 #    by Phil Schwartz: http://denyhosts.sourceforge.net/
 #
-# Mail: 29/12/06 patch by Erik Ljungström      erik [-at-] ibiblio dot 0rg
+# Mail: 29/12/06 patch by Erik LjungstrÃ¶m      erik [-at-] ibiblio dot 0rg
 #    http://www.aczoom.com/forums/blockhosts/patch-enabling-email-alerts
 # -------------------------------------------------------------
 
