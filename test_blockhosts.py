@@ -212,21 +212,21 @@ class TestBlockHosts(unittest.TestCase):
                  '--logfiles=' + TEST_LOG_FILE,
                  '--debug',  '--configfile=' + TEST_CONFIG_FILE,
                  '--blockfile=' + TEST_BLOCKFILE,
-                 '--blacklist=255.0.231.1, 100.0.0.2, 10.0.0.1, 10\.102\..*',
-                 '--whitelist=10\.0\..*',
+                 '--denylist=255.0.231.1, 100.0.0.2, 10.0.0.1, 10\.102\..*',
+                 '--allowlist=10\.0\..*',
                ]
 
-        Log.Info(' Test main filters - blacklist and whitelist')
+        Log.Info(' Test main filters - denylist and allowlist')
         Log.Debug('  ... main(%s)' % (args))
 
         value = self._run_main(args)
 
         # print 'got stdout and stderr', output.getvalue()
         lookfor = [
-            "Notice: blacklist: blocking host:     255.0.231.1",
-            "Notice: blacklist: blocking host:       100.0.0.2",
-            "Notice: blacklist: blocking watched host:      10.102.1.1, matched '10\.102\..*'",
-            "Notice: whitelist: removing blocked host:        10.0.0.1, matched '10\.0\..*'",
+            "Notice: denylist: blocking host:     255.0.231.1",
+            "Notice: denylist: blocking host:       100.0.0.2",
+            "Notice: denylist: blocking watched host:      10.102.1.1, matched '10\.102\..*'",
+            "Notice: allowlist: removing blocked host:        10.0.0.1, matched '10\.0\..*'",
 
             ]
 

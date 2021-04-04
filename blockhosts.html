@@ -13,7 +13,7 @@ addition to TCP_WRAPPERS, can also execute iptables or ip route commands to
 block all TCP/IP network input from an IP address, so all services, even those
 that do not run under libwrap TCP_WRAPPERS, can be protected. Can handle both
 IPv4 and IPv6 addresses, as long as the system tools also support such
-addressess.  Facilities for whitelists and blacklists, and email notification
+addressess.  Facilities for allowed and blocked lists, and email notification
 on major events are also available.
 
 Options:
@@ -70,22 +70,22 @@ Options:
     --discard=AGE       Number of hours after which to discard record - if
                         most recent invalid attempt from IP address is older,
                         discard that host entry (12).  Integer values only.
-    --whitelist=IP1,IP2,...
+    --allowlist=IP1,IP2,...
                         A list of IP (IPv4 or IPv6) addresses or regular
                         expressions that represent a IP. When considering IPs
                         to block, if that IP address matches any item in this
                         list, then it will be rejected for the block list -
                         never blocked. ('127.0.0.1')
-    --blacklist=IP1,IP2,...
+    --denylist=IP1,IP2,...
                         When considering IPs to block, if that IP address
                         matches any item in this list, then it will be
                         immediately added to the block list, even if
                         blockcount/COUNT_THRESHOLD may not have been reached.
                         IP addresses directly specified in this list without
                         using a regular expression will be immediately added
-                        to the blocked list.  The whitelist takes precedence
-                        over blacklist - so a match in both will mean it is
-                        white-listed. ('')
+                        to the blocked list.  The allowlist takes precedence
+                        over denylist - so a match in both will mean it is
+                        allowed. ('')
 
   Mail specific options:
     These options apply to the process of sending email.
@@ -178,11 +178,11 @@ Options:
     is not yet blocked, or if not a single address is being blocked. SMTP is
     required for sending email.
     
-    Whitelist and Blacklist Support
+    Allowlist and Denylist Support
     Lists can be specified to force particular IP addresses to be
-    never blocked (whitelist), or to be immediately blocked (blacklist).
+    never blocked (allowlist), or to be immediately blocked (denylist).
     The lists contain IP addresses or regular expressions representing IP
-    addresses. This built-in method of whitelist and blacklist provides
+    addresses. This built-in method of allowlist and denylist provides
     an easy way to make sure IPs are blocked or never-blocked whatever the
     configuration of blockhosts.py - using cron or hosts.allow invocation, or
     using hosts.allow or iptables or route command blocking.
@@ -201,7 +201,7 @@ Options:
     The blockfile (hosts.allow, or if needed, hosts.deny) layout needs to
     have a certain format:
       Add following sections, in this order:
-      -- permament whitelist and blacklist of IP addresses using hosts.allow syntax
+      -- permament allowlist and denylist of IP addresses using hosts.allow syntax
       -- blockhosts marker lines - two lines
       -- execute command to kick off blockhosts.py on connects to services
     

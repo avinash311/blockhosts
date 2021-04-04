@@ -52,11 +52,11 @@ IP addresses in the email message. Will not send email if given IP address
 is not yet blocked, or if not a single address is being blocked. SMTP is
 required for sending email.
 
-Whitelist and Blacklist Support
+Allowlist and Denylist Support
 Lists can be specified to force particular IP addresses to be
-never blocked (whitelist), or to be immediately blocked (blacklist).
+never blocked (allowlist), or to be immediately blocked (denylist).
 The lists contain IP addresses or regular expressions representing IP
-addresses. This built-in method of whitelist and blacklist provides
+addresses. This built-in method of allowlist and denylist provides
 an easy way to make sure IPs are blocked or never-blocked whatever the
 configuration of blockhosts.py - using cron or hosts.allow invocation, or
 using hosts.allow or iptables or route command blocking.
@@ -75,7 +75,7 @@ For more info, run this program with --help option.
 The blockfile (hosts.allow, or if needed, hosts.deny) layout needs to
 have a certain format:
   Add following sections, in this order:
-  -- permament whitelist and blacklist of IP addresses using hosts.allow syntax
+  -- permament allowlist and denylist of IP addresses using hosts.allow syntax
   -- blockhosts marker lines - two lines
   -- execute command to kick off blockhosts.py on connects to services
 
@@ -146,7 +146,7 @@ those that do not run under libwrap TCP_WRAPPERS, can be protected.
 Can handle both IPv4 and IPv6 addresses, as long as the system tools also
 support such addressess.
 
-Facilities for whitelists and blacklists, and email notification on major
+Facilities for allowlists and denylists, and email notification on major
 events are also available.
 
 """
@@ -978,7 +978,7 @@ def _do_iproute(path, dry_run, blocked_ips):
     if dry_run:
         print("Commands (tentative) to run for ip null-route blocking:")
 
-    # get current list of blackhole'd hosts, and do two things:
+    # get current list of denied hosts, and do two things:
     # 1 -> delete route for host, if not on blocked_ips
     # 2 -> delete host from blocked_ips, if route already exists
     # ip route list [table <id>]
@@ -1862,82 +1862,82 @@ class HostsFilters:
 
     add_blocked_by_count = classmethod(add_blocked_by_count)
 
-    def add_blocked_blacklist(cls, config, blocked_ips, watched_hosts):
-        """Add blacklisted hosts to the blocked list, watched list untouched"""
-        blacklist = config["blacklist"].split(",")
-        for ip in blacklist:
+    def add_blocked_denylist(cls, config, blocked_ips, watched_hosts):
+        """Add denylisted hosts to the blocked list, watched list untouched"""
+        denylist = config["denylist"].split(",")
+        for ip in denylist:
             # ip could be a ip address or a regular expression for an ip addr
             ip = ip.strip()
-            Log.Debug(" add_blocked_blacklist: testing ip: '%s'" % ip)
+            Log.Debug(" add_blocked_denylist: testing ip: '%s'" % ip)
             if Config.HOST_IP_REOBJ.match(ip):
-                # if there are any non-regular expression IPs in blacklist,
+                # if there are any non-regular expression IPs in denylist,
                 # immediately add them to the blocked_ips
                 blocked_ips.append(ip)
-                Log.Notice("blacklist: blocking host: %15s" % ip)
+                Log.Notice("denylist: blocking host: %15s" % ip)
             else:
                 # not an IP address, so treat it as a regular expression
-                # if any of the regular expressions in blacklist match
+                # if any of the regular expressions in denylist match
                 # a watched host, immediately add it to the blocked list
                 try:
                     test = re.compile("^" + ip + "$")
                 except re.error as e:
-                    Log.Error("blacklist option: regexp '%s' failed to compile: " % (ip), e)
+                    Log.Error("denylist option: regexp '%s' failed to compile: " % (ip), e)
                     raise
 
                 for watched in watched_hosts:
                     if test.match(watched) and watched not in blocked_ips:
                         blocked_ips.append(watched)
-                        Log.Notice("blacklist: blocking watched host: %15s, matched '%s'" % (watched, ip))
+                        Log.Notice("denylist: blocking watched host: %15s, matched '%s'" % (watched, ip))
 
-    add_blocked_blacklist = classmethod(add_blocked_blacklist)
+    add_blocked_denylist = classmethod(add_blocked_denylist)
 
-    # remove_watched_whitelist
+    # remove_watched_allowlist
     # check if any of the watched addresses should be removed
-    # another option is to apply whitelist on blocked list - that
-    # way it can be applied before or after the blacklist filter
-    def remove_watched_whitelist(cls, config, blocked_ips, watched_hosts):
-        """Remove whitelisted hosts from the watched list only"""
-        whitelist = config["whitelist"].split(",")
-        # TODO: if watched list is much larger than whitelist, may be
+    # another option is to apply allowlist on blocked list - that
+    # way it can be applied before or after the denylist filter
+    def remove_watched_allowlist(cls, config, blocked_ips, watched_hosts):
+        """Remove allowlisted hosts from the watched list only"""
+        allowlist = config["allowlist"].split(",")
+        # TODO: if watched list is much larger than allowlist, may be
         # better to flip the 2-level nested loop below
-        for ip in whitelist:
+        for ip in allowlist:
             try:
                 test = re.compile("^" + ip + "$")
             except re.error as e:
-                Log.Error("whitelist option: regexp '%s' failed to compile: " % (ip), e)
+                Log.Error("allowlist option: regexp '%s' failed to compile: " % (ip), e)
                 raise
 
             for watched in list(watched_hosts.keys()):
                 if test.match(watched):
                     count = watched_hosts[watched].count
                     del watched_hosts[watched]
-                    Log.Notice("whitelist: removing watched host: %15s, count=%d, matched '%s'" % (watched, count, ip))
+                    Log.Notice("allowlist: removing watched host: %15s, count=%d, matched '%s'" % (watched, count, ip))
 
-    remove_watched_whitelist = classmethod(remove_watched_whitelist)
+    remove_watched_allowlist = classmethod(remove_watched_allowlist)
 
-    # remove_blocked_whitelist
+    # remove_blocked_allowlist
     # check if any of the blocked addresses should be removed
-    # another option is to apply whitelist on watched list - that
+    # another option is to apply allowlist on watched list - that
     # way IP can be removed from watch list and not be continually
     # re-added to blocked list when count is exceeded
-    def remove_blocked_whitelist(cls, config, blocked_ips, watched_hosts):
-        """Remove whitelisted hosts from the blocked list only"""
-        whitelist = config["whitelist"].split(",")
-        # TODO: if blocked_ips list is much larger than whitelist, may be
+    def remove_blocked_allowlist(cls, config, blocked_ips, watched_hosts):
+        """Remove allowlisted hosts from the blocked list only"""
+        allowlist = config["allowlist"].split(",")
+        # TODO: if blocked_ips list is much larger than allowlist, may be
         # better to flip the 2-level nested loop below
-        for ip in whitelist:
+        for ip in allowlist:
             try:
                 test = re.compile("^" + ip + "$")
             except re.error as e:
-                Log.Error("whitelist option: regexp '%s' failed to compile: " % (ip), e)
+                Log.Error("allowlist option: regexp '%s' failed to compile: " % (ip), e)
                 raise
 
             for blocked in blocked_ips[:]:
                 if test.match(blocked):
                     blocked_ips.remove(blocked)
-                    Log.Notice("whitelist: removing blocked host: %15s, matched '%s'" % (blocked, ip))
+                    Log.Notice("allowlist: removing blocked host: %15s, matched '%s'" % (blocked, ip))
 
-    remove_blocked_whitelist = classmethod(remove_blocked_whitelist)
+    remove_blocked_allowlist = classmethod(remove_blocked_allowlist)
 
 
 class HostsFiltersConfig(ConfigSection):
@@ -1959,13 +1959,13 @@ class HostsFiltersConfig(ConfigSection):
             # are blocked, so to keep hosts.allow file size small,
             # no reason to make this any more than, say, half-a-day
 
-        "WHITELIST": ("127.0.0.1",),
+        "ALLOWLIST": ("127.0.0.1",),
             # A list of IP (IPv4 or IPv6) addresses or regular expressions that
             # represent a IP address - this is the list of
-            # white-listed IP addresses.
+            # allow-listed IP addresses.
 
-        "BLACKLIST": (),
-            # blacklist IPv4 or IPv6 addresses or regular expressions
+        "DENYLIST": (),
+            # denylist IPv4 or IPv6 addresses or regular expressions
     }
 
     NAME = "filters"  # config file section name is [NAME]
@@ -1979,8 +1979,8 @@ class HostsFiltersConfig(ConfigSection):
         oparser.set_defaults(
             blockcount=config["COUNT_THRESHOLD"],
             discard=config["AGE_THRESHOLD"],
-            whitelist=",".join(config["WHITELIST"]),
-            blacklist=",".join(config["BLACKLIST"]),
+            allowlist=",".join(config["ALLOWLIST"]),
+            denylist=",".join(config["DENYLIST"]),
             )
 
         defaults = oparser.get_default_values()
@@ -1996,7 +1996,7 @@ and watched lists of IP addresses.
         oconfig.add_option("--discard", type="int", metavar="AGE",
             help="Number of hours after which to discard record - if most recent invalid attempt from IP address is older, discard that host entry (%d).  Integer values only." % defaults.discard)
 
-        # whitelist/blacklist handled specially - since optparse can't do
+        # allowlist/denylist handled specially - since optparse can't do
         # eval(), and I did not want to add a new optparse type, command
         # line arg for logfiles only accepts string, unlike the config file,
         # which accepts the full python syntax - list elements, characters
@@ -2004,11 +2004,11 @@ and watched lists of IP addresses.
         # separated by ",", while config file is a python list with multiple
         # IP addresses or regular expressions
 
-        oconfig.add_option("--whitelist", type="string", metavar="IP1,IP2,...",
-            help="A list of IP (IPv4 or IPv6) addresses or regular expressions that represent a IP. When considering IPs to block, if that IP address matches any item in this list, then it will be rejected for the block list - never blocked. ('%s')" % defaults.whitelist)
+        oconfig.add_option("--allowlist", type="string", metavar="IP1,IP2,...",
+            help="A list of IP (IPv4 or IPv6) addresses or regular expressions that represent a IP. When considering IPs to block, if that IP address matches any item in this list, then it will be rejected for the block list - never blocked. ('%s')" % defaults.allowlist)
 
-        oconfig.add_option("--blacklist", type="string", metavar="IP1,IP2,...",
-            help="When considering IPs to block, if that IP address matches any item in this list, then it will be immediately added to the block list, even if blockcount/COUNT_THRESHOLD may not have been reached.  IP addresses directly specified in this list without using a regular expression will be immediately added to the blocked list.  The whitelist takes precedence over blacklist - so a match in both will mean it is white-listed. ('%s')" % defaults.blacklist)
+        oconfig.add_option("--denylist", type="string", metavar="IP1,IP2,...",
+            help="When considering IPs to block, if that IP address matches any item in this list, then it will be immediately added to the block list, even if blockcount/COUNT_THRESHOLD may not have been reached.  IP addresses directly specified in this list without using a regular expression will be immediately added to the blocked list.  The allowlist takes precedence over denylist - so a match in both will mean it is allow-listed. ('%s')" % defaults.denylist)
 
         oparser.add_option_group(oconfig)
 
@@ -2141,10 +2141,10 @@ def main(args=None):
         dh.update_hosts_lists(config,
             [
                 HostsFilters.prune_watched_by_date,
-                HostsFilters.remove_watched_whitelist,
+                HostsFilters.remove_watched_allowlist,
                 HostsFilters.add_blocked_by_count,
-                HostsFilters.add_blocked_blacklist,
-                HostsFilters.remove_blocked_whitelist,
+                HostsFilters.add_blocked_denylist,
+                HostsFilters.remove_blocked_allowlist,
             ]
         )
 

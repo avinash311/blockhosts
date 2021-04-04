@@ -1,11 +1,11 @@
 ##########################################################################
 ##########################################################################
 # 
-# 20 Dec 2007 Update: added blacklist summaries, errors/warnings report
+# 20 Dec 2007 Update: added denylist summaries, errors/warnings report
 # 15 Dec 2007: Created
 #
-# Dec 2007: Written by Avinash Chopde <avinash@acm.org> for blockhosts.py
-# blockhosts.py home page: http://www.aczoom.com/cms/blockhosts
+# Dec 2007: Written by Avinash Chopde <avinash@aczoom.com> for blockhosts.py
+# blockhosts.py home page: http://www.aczoom.com/blockhosts/
 #
 ##########################################################################
 
@@ -19,18 +19,18 @@ my $DebugCounter = 0;
 my %Blocked = ();
 my %Expired = ();
 
-# IP in watched list, but removed because it matched whitelist
-my %WhitelistWatched = ();
+# IP in watched list, but removed because it matched allowlist
+my %AllowlistWatched = ();
 
-# IP in blocked list, but removed because it matched whitelist
-my %WhitelistBlocked = ();
+# IP in blocked list, but removed because it matched allowlist
+my %AllowlistBlocked = ();
 
 # IP in watched list (count not yet reached high enough to block),
-# but force blocked because it matched blacklist
-my %BlacklistWatched = ();
+# but force blocked because it matched denylist
+my %DenylistWatched = ();
 
-# IP not in watched list, but force blocked because blacklist contained IP
-my %BlacklistBlocked = ();
+# IP not in watched list, but force blocked because denylist contained IP
+my %DenylistBlocked = ();
 
 my @ErrorList = ();
 my @OtherList = ();
@@ -73,30 +73,30 @@ while (defined(my $ThisLine = <STDIN>)) {
          print STDERR "DEBUG($DebugCounter): Found Just Expired: $Host\n";
       }
       $Expired{$Host}++;
-   } elsif ( my ($Host, $Count) = ($ThisLine =~ m/Notice: whitelist: removing watched host:\s+(\S+), count=(\d+)/)) {
-# Notice: whitelist: removing watched host: %15s, count=%d
+   } elsif ( my ($Host, $Count) = ($ThisLine =~ m/Notice: allowlist: removing watched host:\s+(\S+), count=(\d+)/)) {
+# Notice: allowlist: removing watched host: %15s, count=%d
       if ( $Debug >= 5 ) {
-         print STDERR "DEBUG($DebugCounter): Whitelist removal of watched: $Host\n";
+         print STDERR "DEBUG($DebugCounter): Allowlist removal of watched: $Host\n";
       }
-      $WhitelistWatched{$Host} += $Count;
-   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: whitelist: removing blocked host:\s+(\S+)/)) {
-# Notice: whitelist: removing blocked host: %15s
+      $AllowlistWatched{$Host} += $Count;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: allowlist: removing blocked host:\s+(\S+)/)) {
+# Notice: allowlist: removing blocked host: %15s
       if ( $Debug >= 5 ) {
-         print STDERR "DEBUG($DebugCounter): Whitelist removal of blocked: $Host\n";
+         print STDERR "DEBUG($DebugCounter): Allowlist removal of blocked: $Host\n";
       }
-      $WhitelistBlocked{$Host} += 1;
-   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: blacklist: blocking host:\s+(\S+)/)) {
-# Notice: blacklist: blocking host: %15s
+      $AllowlistBlocked{$Host} += 1;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: denylist: blocking host:\s+(\S+)/)) {
+# Notice: denylist: blocking host: %15s
       if ( $Debug >= 5 ) {
-         print STDERR "DEBUG($DebugCounter): Blacklist blocking: $Host\n";
+         print STDERR "DEBUG($DebugCounter): Denylist blocking: $Host\n";
       }
-      $BlacklistBlocked{$Host} += 1;
-   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: blacklist: blocking watched host:\s+(\S+), /)) {
-# Notice: blacklist: blocking watched host: %15s, matched '%s'
+      $DenylistBlocked{$Host} += 1;
+   } elsif ( my ($Host) = ($ThisLine =~ m/Notice: denylist: blocking watched host:\s+(\S+), /)) {
+# Notice: denylist: blocking watched host: %15s, matched '%s'
       if ( $Debug >= 5 ) {
-         print STDERR "DEBUG($DebugCounter): Blacklist immediately blocking watched: $Host\n";
+         print STDERR "DEBUG($DebugCounter): Denylist immediately blocking watched: $Host\n";
       }
-      $BlacklistWatched{$Host} += 1;
+      $DenylistWatched{$Host} += 1;
    } elsif ($ThisLine =~ /^(error|warning):/i) {
       push @ErrorList, "$ThisLine\n";
    } else {
@@ -131,11 +131,11 @@ if (keys %Expired) {
 }
 
 
-# Whitelist activity
-if (keys %WhitelistWatched) {
-   printf("\nWhitelist-based removal of suspect hosts: %d\n", scalar keys %WhitelistWatched);
+# Allowlist activity
+if (keys %AllowlistWatched) {
+   printf("\nAllowlist-based removal of suspect hosts: %d\n", scalar keys %AllowlistWatched);
    if ($Detail >= 5) {
-      while ( my ($ip, $count) = each(%WhitelistWatched) ) {
+      while ( my ($ip, $count) = each(%AllowlistWatched) ) {
          printf("  %-15s\n", $ip)
       }
    }
@@ -143,30 +143,30 @@ if (keys %WhitelistWatched) {
 
 
 if ($Detail >= 5) {
-   if (keys %WhitelistBlocked) {
-      printf("\nWhitelist-based removal of auto-blacklisted hosts: %d\n", scalar keys %WhitelistBlocked);
-      while ( my ($ip, $count) = each(%WhitelistBlocked) ) {
+   if (keys %AllowlistBlocked) {
+      printf("\nAllowlist-based removal of auto-denylisted hosts: %d\n", scalar keys %AllowlistBlocked);
+      while ( my ($ip, $count) = each(%AllowlistBlocked) ) {
          printf("  %-15s\n", $ip)
       }
    }
 }
 
 
-# Blacklist activity
-if (keys %BlacklistWatched) {
-   printf("\nBlacklist-based immediate blocking of watched hosts: %d\n", scalar keys %BlacklistWatched);
+# Denylist activity
+if (keys %DenylistWatched) {
+   printf("\nDenylist-based immediate blocking of watched hosts: %d\n", scalar keys %DenylistWatched);
    if ($Detail >= 5) {
-      while ( my ($ip, $count) = each(%BlacklistWatched) ) {
+      while ( my ($ip, $count) = each(%DenylistWatched) ) {
          printf("  %-15s\n", $ip)
       }
    }
 }
 
 if ($Detail >= 5) {
-   if (keys %BlacklistBlocked) {
-      printf("\nBlacklist-based force blocking of non-watched hosts: %d\n", scalar keys %BlacklistBlocked);
+   if (keys %DenylistBlocked) {
+      printf("\nDenylist-based force blocking of non-watched hosts: %d\n", scalar keys %DenylistBlocked);
       if ($Detail >= 5) {
-         while ( my ($ip, $count) = each(%BlacklistBlocked) ) {
+         while ( my ($ip, $count) = each(%DenylistBlocked) ) {
             printf("  %-15s\n", $ip)
          }
       }

@@ -4,6 +4,10 @@
    Ran 2to3 on blockhost.py, with minor cleanup.
    This version now only supports python3 and will not run with python2.
 
+ * Options and config names changed:
+   BLACKLIST is now DENYLIST or --denylist
+   WHITELIST is now ALOWLIST or --allowlist
+
  * Fix issue caused by re.py changes and causing problems to old code:
    https://stackoverflow.com/questions/58328587/python-3-7-4-re-error-bad-escape-s-at-position-0
    Ex: re.error: bad escape \w at position 3

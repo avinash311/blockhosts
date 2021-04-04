@@ -113,7 +113,7 @@ sufficient for the purpose of determining which host to block.]
 
 /etc/hosts.allow (or /etc/hosts.deny) - the hosts block file
   Add following sections, in this order:
-  -- your permanent whitelist and blacklist of IP addresses (if needed)
+  -- your permanent allowlist and denylist of IP addresses (if needed)
   -- blockhosts marker lines - two lines
   -- execute command to kick off blockhosts.py on connects to services
 
@@ -129,15 +129,15 @@ file - hosts.allow, and ignore the other file entirely:
 #is rule applied by hosts_access
 #
 # the following lines show how to use hosts.allow syntax to create
-# whitelists and blacklists - this works if invoking blockhosts.py from
+# allowlists and denylists - this works if invoking blockhosts.py from
 # hosts.allow file. If using cron to run blockhosts, look into
-# using the blockhosts.cfg for specifying whitelists and blacklists.
+# using the blockhosts.cfg for specifying allowlists and denylists.
 
-# permanent whitelist addresses - these should always be ALLOWED access - edit
+# permanent allowlist addresses - these should always be ALLOWED access - edit
 # as needed, following is example to show syntax only.
 ALL: 127.0.0.1  : allow
 ALL: 192.168.0. : allow
-# permanent blacklist addresses - these should always be DENIED access - edit
+# permanent denylist addresses - these should always be DENIED access - edit
 # as needed, following is example to show syntax only.
 
 ALL: 10.  : deny
@@ -160,7 +160,7 @@ ALL: 172. : deny
 
 sshd, proftpd, vsftpd: ALL: spawn /usr/bin/blockhosts.py \
      --echo "%c-%s" --ipblock=iptables \
-     --whitelist="10\..*,127.0.0.1" --blacklist="192.168.1.1,192.168.1.2" \
+     --allowlist="10\..*,127.0.0.1" --denylist="192.168.1.1,192.168.1.2" \
 #---
 # for more help on all the options, run:
 #        blockhosts.py --help

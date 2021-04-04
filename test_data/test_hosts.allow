@@ -1,7 +1,7 @@
-# permanent whitelist addresses - this should always be allowed access
+# permanent allowlist addresses - this should always be allowed access
 ALL: 127.0.0.1 : allow
 
-# permanent blacklist addresses - this should always be denied access
+# permanent denylist addresses - this should always be denied access
 ALL: 192.168. : deny
 
 # ----------------------------------------
